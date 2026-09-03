@@ -8,7 +8,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@color/wire_route_background"
+    android:background="?android:attr/colorBackground"
     android:paddingHorizontal="12dp"
     android:paddingVertical="8dp">
 
@@ -17,7 +17,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:textAppearance="?attr/textAppearanceBodySmall"
-        android:textColor="@color/wire_route_tertiary_label"
+        android:textColor="?attr/colorOnSurfaceVariant"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         tools:text="Fri Mar 13 10:17:37 GMT+05:30 2020" />
@@ -27,7 +27,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textAppearance="?attr/textAppearanceBodySmall"
-        android:textColor="@color/wire_route_label"
+        android:textColor="?attr/colorOnSurface"
         app:layout_constraintTop_toBottomOf="@id/log_date"
         tools:text="FATAL EXCEPTION: Thread-2" />
 

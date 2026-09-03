@@ -2,6 +2,7 @@
 package com.wireguard.android.activity
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -29,6 +30,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.color.DynamicColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.google.zxing.BarcodeFormat
@@ -187,6 +189,9 @@ class WireRouteActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val initialAppearance = Application.getWireRouteStore().appearance()
+        setTheme(if (initialAppearance == WireRouteStore.APPEARANCE_NORDIC) R.style.WireRouteMainTheme else R.style.WireRouteSystemMainTheme)
+        if (initialAppearance == WireRouteStore.APPEARANCE_SYSTEM) DynamicColors.applyToActivityIfAvailable(this)
         super.onCreate(savedInstanceState)
         store = Application.getWireRouteStore()
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -207,9 +212,11 @@ class WireRouteActivity : AppCompatActivity() {
             palette = WireRoutePalette.resolve(this@WireRouteActivity, appearanceMode)
             window.statusBarColor = palette.background
             window.navigationBarColor = palette.background
+            val useLightSystemBars = appearanceMode == WireRouteStore.APPEARANCE_SYSTEM &&
+                resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK != Configuration.UI_MODE_NIGHT_YES
             WindowCompat.getInsetsController(window, window.decorView).apply {
-                isAppearanceLightStatusBars = palette.label == Color.rgb(0x1C, 0x1C, 0x1E)
-                isAppearanceLightNavigationBars = isAppearanceLightStatusBars
+                isAppearanceLightStatusBars = useLightSystemBars
+                isAppearanceLightNavigationBars = useLightSystemBars
             }
             MapLibre.getInstance(this@WireRouteActivity)
             buildRoot()

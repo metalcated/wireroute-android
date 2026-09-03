@@ -5,14 +5,26 @@
 package com.wireguard.android.activity
 
 import android.os.Bundle
+import com.google.android.material.color.DynamicColors
+import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.model.ObservableTunnel
+import com.wireguard.android.wireroute.WireRouteStore
 
 /**
  * Standalone activity for creating tunnels.
  */
 class TunnelCreatorActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        val appearance = Application.getWireRouteStore().appearance()
+        setTheme(
+            if (appearance == WireRouteStore.APPEARANCE_NORDIC) {
+                R.style.WireRouteEditorTheme
+            } else {
+                R.style.WireRouteSystemEditorTheme
+            }
+        )
+        if (appearance == WireRouteStore.APPEARANCE_SYSTEM) DynamicColors.applyToActivityIfAvailable(this)
         super.onCreate(savedInstanceState)
         title = intent.getStringExtra(KEY_SELECTED_TUNNEL)?.let {
             getString(R.string.edit_profile_title, it)

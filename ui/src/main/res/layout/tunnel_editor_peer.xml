@@ -33,10 +33,10 @@
         android:layout_marginTop="10dp"
         android:layout_marginEnd="20dp"
         android:layout_marginBottom="2dp"
-        app:cardBackgroundColor="@color/wire_route_card"
+        app:cardBackgroundColor="?attr/colorSurfaceContainer"
         app:cardCornerRadius="22dp"
         app:cardElevation="0dp"
-        app:strokeColor="@color/wire_route_border"
+        app:strokeColor="?attr/colorOutline"
         app:strokeWidth="1dp">
 
         <androidx.constraintlayout.widget.ConstraintLayout
@@ -51,7 +51,7 @@
                 android:layout_marginStart="4dp"
                 android:layout_marginTop="2dp"
                 android:text="@string/peer"
-                android:textColor="@color/wire_route_label"
+                android:textColor="?attr/colorOnSurface"
                 android:textSize="20sp"
                 android:textStyle="bold"
                 app:layout_constraintBottom_toTopOf="@+id/public_key_label_layout"
@@ -68,7 +68,7 @@
                 android:onClick="@{() -> item.unbind()}"
                 android:padding="8dp"
                 android:src="@drawable/ic_action_delete"
-                app:tint="@color/wire_route_secondary_label"
+                app:tint="?attr/colorOnSurfaceVariant"
                 app:layout_constraintBaseline_toBaselineOf="@id/peer_title"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="@id/peer_title" />
@@ -221,7 +221,7 @@
                 android:nextFocusForward="@id/add_peer_button"
                 android:text="@string/exclude_private_ips"
                 android:visibility="@{item.ableToExcludePrivateIps ? View.VISIBLE : View.GONE}"
-                android:textColor="@color/wire_route_secondary_label"
+                android:textColor="?attr/colorOnSurfaceVariant"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/allowed_ips_label_layout" />

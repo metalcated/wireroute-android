@@ -31,7 +31,7 @@
         android:id="@+id/main_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@color/wire_route_background">
+        android:background="?android:attr/colorBackground">
 
         <ScrollView
             android:layout_width="match_parent"
@@ -43,7 +43,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@color/wire_route_background"
+                android:background="?android:attr/colorBackground"
                 android:orientation="vertical"
                 android:paddingBottom="28dp">
 
@@ -54,10 +54,10 @@
                     android:layout_marginTop="16dp"
                     android:layout_marginEnd="20dp"
                     android:layout_marginBottom="10dp"
-                    app:cardBackgroundColor="@color/wire_route_card"
+                    app:cardBackgroundColor="?attr/colorSurfaceContainer"
                     app:cardCornerRadius="22dp"
                     app:cardElevation="0dp"
-                    app:strokeColor="@color/wire_route_border"
+                    app:strokeColor="?attr/colorOutline"
                     app:strokeWidth="1dp">
 
                     <androidx.constraintlayout.widget.ConstraintLayout
@@ -72,7 +72,7 @@
                             android:layout_marginStart="4dp"
                             android:layout_marginTop="2dp"
                             android:text="@string/interface_title"
-                            android:textColor="@color/wire_route_label"
+                            android:textColor="?attr/colorOnSurface"
                             android:textSize="20sp"
                             android:textStyle="bold"
                             app:layout_constraintStart_toStartOf="parent"
@@ -284,20 +284,20 @@
                             android:layout_marginTop="14dp"
                             android:layout_marginEnd="4dp"
                             android:layout_marginBottom="4dp"
-                            android:backgroundTint="@color/wire_route_inset"
+                            android:backgroundTint="?attr/colorSurfaceContainerLow"
                             android:nextFocusUp="@id/dns_servers_text"
                             android:nextFocusDown="@id/peers_layout"
                             android:nextFocusForward="@id/peers_layout"
                             android:onClick="@{fragment::onRequestSetExcludedIncludedApplications}"
                             android:text="@{config.interface.includedApplications.size > 0 ? @plurals/set_included_applications(config.interface.includedApplications.size, config.interface.includedApplications.size) : config.interface.excludedApplications.size > 0 ? @plurals/set_excluded_applications(config.interface.excludedApplications.size, config.interface.excludedApplications.size) : @string/all_applications}"
-                            android:textColor="@color/wire_route_signal_blue"
+                            android:textColor="?attr/colorPrimary"
                             app:layout_constraintBottom_toBottomOf="parent"
                             app:layout_constraintEnd_toEndOf="parent"
                             app:layout_constraintStart_toStartOf="parent"
                             app:layout_constraintTop_toBottomOf="@id/mtu_label_layout"
                             app:cornerRadius="24dp"
-                            app:rippleColor="@color/wire_route_signal_blue"
-                            app:strokeColor="@color/wire_route_border"
+                            app:rippleColor="?attr/colorPrimary"
+                            app:strokeColor="?attr/colorOutline"
                             tools:text="4 excluded applications" />
                     </androidx.constraintlayout.widget.ConstraintLayout>
                 </com.google.android.material.card.MaterialCardView>
@@ -323,14 +323,14 @@
                     android:layout_marginEnd="20dp"
                     android:layout_marginBottom="12dp"
                     android:layout_gravity="bottom"
-                    android:backgroundTint="@color/wire_route_signal_blue"
+                    android:backgroundTint="?attr/colorPrimary"
                     android:gravity="center"
                     android:onClick="@{() -> config.addPeer()}"
                     android:text="@string/add_peer"
-                    android:textColor="@android:color/white"
+                    android:textColor="?attr/colorOnPrimary"
                     app:layout_anchorGravity="bottom"
                     app:cornerRadius="27dp"
-                    app:rippleColor="@android:color/white" />
+                    app:rippleColor="?attr/colorOnPrimary" />
             </LinearLayout>
         </ScrollView>
     </androidx.coordinatorlayout.widget.CoordinatorLayout>

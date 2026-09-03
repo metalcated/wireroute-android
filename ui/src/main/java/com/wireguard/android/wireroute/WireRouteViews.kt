@@ -12,6 +12,7 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
 import android.view.View
+import com.google.android.material.color.MaterialColors
 import kotlin.math.max
 
 private fun rect(left: Number, top: Number, right: Number, bottom: Number) =
@@ -46,7 +47,7 @@ data class WireRoutePalette(
         fun resolve(context: Context, appearance: String): WireRoutePalette {
             if (appearance == WireRouteStore.APPEARANCE_NORDIC) return nordic()
             val dark = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
-            return if (dark) systemDark() else systemLight()
+            return system(context, if (dark) systemDarkFallback() else systemLightFallback())
         }
 
         fun nordic() = WireRoutePalette(
@@ -64,7 +65,22 @@ data class WireRoutePalette(
             tertiaryLabel = Color.rgb(0x65, 0x74, 0x88)
         )
 
-        private fun systemDark() = nordic().copy(
+        private fun system(context: Context, fallback: WireRoutePalette) = WireRoutePalette(
+            background = MaterialColors.getColor(context, android.R.attr.colorBackground, fallback.background),
+            sidebar = MaterialColors.getColor(context, com.google.android.material.R.attr.colorSurfaceContainerLow, fallback.sidebar),
+            inset = MaterialColors.getColor(context, com.google.android.material.R.attr.colorSurfaceContainerLowest, fallback.inset),
+            card = MaterialColors.getColor(context, com.google.android.material.R.attr.colorSurfaceContainer, fallback.card),
+            raised = MaterialColors.getColor(context, com.google.android.material.R.attr.colorSurfaceContainerHigh, fallback.raised),
+            border = MaterialColors.getColor(context, com.google.android.material.R.attr.colorOutline, fallback.border),
+            signalBlue = MaterialColors.getColor(context, androidx.appcompat.R.attr.colorPrimary, fallback.signalBlue),
+            liveTeal = MaterialColors.getColor(context, com.google.android.material.R.attr.colorSecondary, fallback.liveTeal),
+            warningAmber = MaterialColors.getColor(context, com.google.android.material.R.attr.colorTertiary, fallback.warningAmber),
+            label = MaterialColors.getColor(context, com.google.android.material.R.attr.colorOnSurface, fallback.label),
+            secondaryLabel = MaterialColors.getColor(context, com.google.android.material.R.attr.colorOnSurfaceVariant, fallback.secondaryLabel),
+            tertiaryLabel = MaterialColors.getColor(context, com.google.android.material.R.attr.colorOutline, fallback.tertiaryLabel)
+        )
+
+        private fun systemDarkFallback() = nordic().copy(
             background = Color.rgb(0x00, 0x00, 0x00),
             sidebar = Color.rgb(0x1C, 0x1C, 0x1E),
             inset = Color.rgb(0x1C, 0x1C, 0x1E),
@@ -74,7 +90,7 @@ data class WireRoutePalette(
             signalBlue = Color.rgb(0x0A, 0x84, 0xFF)
         )
 
-        private fun systemLight() = nordic().copy(
+        private fun systemLightFallback() = nordic().copy(
             background = Color.rgb(0xF2, 0xF2, 0xF7),
             sidebar = Color.WHITE,
             inset = Color.rgb(0xE9, 0xE9, 0xEF),

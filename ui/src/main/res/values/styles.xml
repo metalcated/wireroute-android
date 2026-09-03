@@ -45,6 +45,15 @@
         <item name="materialAlertDialogTheme">@style/WireRouteAlertDialogTheme</item>
     </style>
 
+    <style name="WireRouteSystemMainTheme" parent="AppThemeBase">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:navigationBarColor">?android:attr/colorBackground</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">@bool/light_status_bar</item>
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+
     <style name="WireRouteEditorTheme" parent="Theme.Material3.Dark">
         <item name="android:fontFamily">sans-serif-rounded</item>
         <item name="android:colorBackground">@color/wire_route_background</item>
@@ -81,6 +90,19 @@
         <item name="textInputStyle">@style/WireRouteEditorTextInput</item>
     </style>
 
+    <style name="WireRouteSystemEditorTheme" parent="AppThemeBase">
+        <item name="android:fontFamily">sans-serif-rounded</item>
+        <item name="android:windowBackground">?android:attr/colorBackground</item>
+        <item name="android:navigationBarColor">?android:attr/colorBackground</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">@bool/light_status_bar</item>
+        <item name="colorControlNormal">?attr/colorOnSurface</item>
+        <item name="actionMenuTextColor">?attr/colorOnSurface</item>
+        <item name="actionBarTheme">@style/WireRouteActionBarTheme</item>
+        <item name="actionBarStyle">@style/WireRouteEditorActionBar</item>
+        <item name="materialCardViewStyle">@style/WireRouteEditorCard</item>
+        <item name="textInputStyle">@style/WireRouteEditorTextInput</item>
+    </style>
+
     <style name="WireRouteAlertDialogTheme" parent="ThemeOverlay.Material3.MaterialAlertDialog">
         <item name="android:colorBackground">@color/wire_route_raised</item>
         <item name="colorPrimary">@color/wire_route_signal_blue</item>
@@ -91,49 +113,54 @@
     </style>
 
     <style name="WireRouteActionBarTheme" parent="ThemeOverlay.Material3.ActionBar">
-        <item name="colorControlNormal">@color/wire_route_label</item>
-        <item name="actionMenuTextColor">@color/wire_route_label</item>
+        <item name="colorControlNormal">?attr/colorOnSurface</item>
+        <item name="actionMenuTextColor">?attr/colorOnSurface</item>
     </style>
 
     <style name="WireRouteLogTheme" parent="WireRouteEditorTheme">
         <item name="android:fontFamily">sans-serif</item>
-        <item name="android:listDivider">@color/wire_route_border</item>
+        <item name="android:listDivider">?attr/colorOutline</item>
         <item name="colorSurface">@color/wire_route_background</item>
         <item name="colorSurfaceContainer">@color/wire_route_card</item>
         <item name="colorSurfaceContainerHigh">@color/wire_route_raised</item>
     </style>
 
+    <style name="WireRouteSystemLogTheme" parent="WireRouteSystemEditorTheme">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:listDivider">?attr/colorOutline</item>
+    </style>
+
     <style name="WireRouteEditorActionBar" parent="Widget.Material3.ActionBar.Solid">
-        <item name="background">@color/wire_route_background</item>
+        <item name="background">?android:attr/colorBackground</item>
         <item name="elevation">0dp</item>
         <item name="titleTextStyle">@style/WireRouteEditorActionBarTitle</item>
     </style>
 
     <style name="WireRouteEditorActionBarTitle" parent="TextAppearance.Material3.TitleLarge">
         <item name="android:fontFamily">sans-serif-rounded</item>
-        <item name="android:textColor">@color/wire_route_label</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
         <item name="android:textSize">21sp</item>
     </style>
 
     <style name="WireRouteEditorCard" parent="Widget.Material3.CardView.Elevated">
-        <item name="cardBackgroundColor">@color/wire_route_card</item>
+        <item name="cardBackgroundColor">?attr/colorSurfaceContainer</item>
         <item name="cardCornerRadius">22dp</item>
         <item name="cardElevation">0dp</item>
-        <item name="strokeColor">@color/wire_route_border</item>
+        <item name="strokeColor">?attr/colorOutline</item>
         <item name="strokeWidth">1dp</item>
     </style>
 
     <style name="WireRouteEditorTextInput" parent="Widget.Material3.TextInputLayout.OutlinedBox">
-        <item name="boxBackgroundColor">@color/wire_route_inset</item>
+        <item name="boxBackgroundColor">?attr/colorSurfaceContainerLow</item>
         <item name="boxCornerRadiusTopStart">12dp</item>
         <item name="boxCornerRadiusTopEnd">12dp</item>
         <item name="boxCornerRadiusBottomStart">12dp</item>
         <item name="boxCornerRadiusBottomEnd">12dp</item>
-        <item name="boxStrokeColor">@color/wire_route_border</item>
+        <item name="boxStrokeColor">?attr/colorOutline</item>
         <item name="boxStrokeWidth">1dp</item>
         <item name="boxStrokeWidthFocused">2dp</item>
-        <item name="hintTextColor">@color/wire_route_secondary_label</item>
-        <item name="android:textColorHint">@color/wire_route_secondary_label</item>
+        <item name="hintTextColor">?attr/colorOnSurfaceVariant</item>
+        <item name="android:textColorHint">?attr/colorOnSurfaceVariant</item>
     </style>
 
     <style name="WireGuardTheme.MaterialCardView" parent="Widget.Material3.CardView.Elevated">

@@ -29,19 +29,21 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.collection.CircularArray
 import androidx.core.app.ShareCompat
-import androidx.core.content.res.ResourcesCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.color.DynamicColors
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.textview.MaterialTextView
+import com.wireguard.android.Application
 import com.wireguard.android.BuildConfig
 import com.wireguard.android.R
 import com.wireguard.android.databinding.LogViewerActivityBinding
 import com.wireguard.android.util.DownloadsFileSaver
 import com.wireguard.android.util.ErrorMessages
 import com.wireguard.android.util.resolveAttribute
+import com.wireguard.android.wireroute.WireRouteStore
 import com.wireguard.crypto.KeyPair
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -74,13 +76,13 @@ class LogViewerActivity : AppCompatActivity() {
 
     private val defaultColor by lazy { resolveAttribute(com.google.android.material.R.attr.colorOnSurface) }
 
-    private val debugColor by lazy { ResourcesCompat.getColor(resources, R.color.debug_tag_color, theme) }
+    private val debugColor by lazy { resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant) }
 
-    private val errorColor by lazy { ResourcesCompat.getColor(resources, R.color.error_tag_color, theme) }
+    private val errorColor by lazy { resolveAttribute(androidx.appcompat.R.attr.colorError) }
 
-    private val infoColor by lazy { ResourcesCompat.getColor(resources, R.color.info_tag_color, theme) }
+    private val infoColor by lazy { resolveAttribute(com.google.android.material.R.attr.colorSecondary) }
 
-    private val warningColor by lazy { ResourcesCompat.getColor(resources, R.color.warning_tag_color, theme) }
+    private val warningColor by lazy { resolveAttribute(com.google.android.material.R.attr.colorTertiary) }
 
     private var lastUri: Uri? = null
 
@@ -93,6 +95,15 @@ class LogViewerActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val appearance = Application.getWireRouteStore().appearance()
+        setTheme(
+            if (appearance == WireRouteStore.APPEARANCE_NORDIC) {
+                R.style.WireRouteLogTheme
+            } else {
+                R.style.WireRouteSystemLogTheme
+            }
+        )
+        if (appearance == WireRouteStore.APPEARANCE_SYSTEM) DynamicColors.applyToActivityIfAvailable(this)
         super.onCreate(savedInstanceState)
         binding = LogViewerActivityBinding.inflate(layoutInflater)
         setContentView(binding.root)
