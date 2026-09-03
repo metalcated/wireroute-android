@@ -103,7 +103,8 @@
         <activity
             android:name=".activity.LogViewerActivity"
             android:exported="false"
-            android:label="@string/log_viewer_title" />
+            android:label="@string/log_viewer_title"
+            android:theme="@style/WireRouteLogTheme" />
 
         <provider
             android:name=".activity.LogViewerActivity$ExportedLogContentProvider"

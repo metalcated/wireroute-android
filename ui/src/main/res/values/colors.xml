@@ -71,6 +71,9 @@
     <color name="wire_route_raised">#213248</color>
     <color name="wire_route_border">#354A62</color>
     <color name="wire_route_signal_blue">#4C83F3</color>
+    <color name="wire_route_live_teal">#2A9D8F</color>
+    <color name="wire_route_warning_amber">#D68B29</color>
+    <color name="wire_route_error_red">#FF8A80</color>
     <color name="wire_route_label">#F4F7FB</color>
     <color name="wire_route_secondary_label">#98A3B5</color>
     <color name="wire_route_tertiary_label">#657488</color>

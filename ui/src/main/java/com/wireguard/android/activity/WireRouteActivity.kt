@@ -262,7 +262,6 @@ class WireRouteActivity : AppCompatActivity() {
         tabBar = LinearLayout(this)
         root.addView(contentHost, frameMatch())
         root.addView(tabBar)
-        setContentView(root)
         ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             if (statusInset != bars.top || navigationInset != bars.bottom) {
@@ -272,6 +271,8 @@ class WireRouteActivity : AppCompatActivity() {
             }
             insets
         }
+        setContentView(root)
+        ViewCompat.requestApplyInsets(root)
         render()
     }
 
