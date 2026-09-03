@@ -6,5 +6,5 @@
     <string name="wireroute_map_glyphs_url" translatable="false">https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf</string>
     <string name="wireroute_map_detailed_style_url" translatable="false">https://tiles.openfreemap.org/styles/liberty</string>
     <string name="wireroute_endpoint_location_url" translatable="false">https://ipwho.is/</string>
-    <string name="wireroute_help_base_url" translatable="false">https://github.com/metalcated/wireroute-apple/blob/main</string>
+    <string name="wireroute_help_base_url" translatable="false">https://github.com/metalcated/wireroute-android/blob/main</string>
 </resources>
