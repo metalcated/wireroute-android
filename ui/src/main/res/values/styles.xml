@@ -2,7 +2,8 @@
   ~ Copyright © 2017-2025 WireGuard LLC. All Rights Reserved.
   ~ SPDX-License-Identifier: Apache-2.0
   -->
-<resources xmlns:android="http://schemas.android.com/apk/res/android">
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <style name="WireGuardTheme.Toolbar" parent="Widget.Material3.Toolbar">
         <item name="android:background">?attr/colorSurface</item>
@@ -18,6 +19,22 @@
 
     <!-- Various additional API-specific features in values-v*/styles.xml -->
     <style name="AppTheme" parent="AppThemeBase" />
+
+    <style name="WireRouteMainTheme" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">#111B2A</item>
+        <item name="android:navigationBarColor">#111B2A</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">false</item>
+        <item name="colorPrimary">#4C83F3</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSurface">#182638</item>
+        <item name="colorOnSurface">#F4F7FB</item>
+        <item name="colorSurfaceVariant">#213248</item>
+        <item name="colorOnSurfaceVariant">#98A3B5</item>
+        <item name="colorOutline">#354A62</item>
+    </style>
 
     <style name="WireGuardTheme.MaterialCardView" parent="Widget.Material3.CardView.Elevated">
         <item name="cornerRadius">4dp</item>

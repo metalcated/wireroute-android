@@ -5,6 +5,7 @@
 package com.wireguard.android
 
 import android.app.PendingIntent
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -19,8 +20,8 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.databinding.Observable
 import androidx.databinding.Observable.OnPropertyChangedCallback
-import com.wireguard.android.activity.MainActivity
 import com.wireguard.android.activity.TunnelToggleActivity
+import com.wireguard.android.activity.WireRouteActivity
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.util.applicationScope
@@ -50,6 +51,7 @@ class QuickTileService : TileService() {
         return ret
     }
 
+    @SuppressLint("StartActivityAndCollapseDeprecated")
     override fun onClick() {
         applicationScope.launch {
             if (tunnel == null) {
@@ -59,7 +61,7 @@ class QuickTileService : TileService() {
             when (val tunnel = tunnel) {
                 null -> {
                     Log.d(TAG, "No tunnel set, so launching main activity")
-                    val intent = Intent(this@QuickTileService, MainActivity::class.java)
+                    val intent = Intent(this@QuickTileService, WireRouteActivity::class.java)
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                         startActivityAndCollapse(PendingIntent.getActivity(this@QuickTileService, 0, intent, PendingIntent.FLAG_IMMUTABLE))

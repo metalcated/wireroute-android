@@ -15,6 +15,7 @@ import androidx.databinding.Bindable
 import com.wireguard.android.Application.Companion.get
 import com.wireguard.android.Application.Companion.getBackend
 import com.wireguard.android.Application.Companion.getTunnelManager
+import com.wireguard.android.Application.Companion.getWireRouteStore
 import com.wireguard.android.BR
 import com.wireguard.android.R
 import com.wireguard.android.backend.Statistics
@@ -71,6 +72,7 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
                 withContext(Dispatchers.IO) { getBackend().setState(tunnel, Tunnel.State.DOWN, null) }
             try {
                 withContext(Dispatchers.IO) { configStore.delete(tunnel.name) }
+                withContext(Dispatchers.IO) { getWireRouteStore().removeProfile(tunnel.name) }
             } catch (e: Throwable) {
                 if (originalState == Tunnel.State.UP)
                     withContext(Dispatchers.IO) { getBackend().setState(tunnel, Tunnel.State.UP, tunnel.config) }
@@ -160,6 +162,7 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
     }
 
     suspend fun setTunnelName(tunnel: ObservableTunnel, name: String): String = withContext(Dispatchers.Main.immediate) {
+        val originalName = tunnel.name
         if (Tunnel.isNameInvalid(name))
             throw IllegalArgumentException(context.getString(R.string.tunnel_error_invalid_name))
         if (tunnelMap.containsKey(name)) {
@@ -178,6 +181,7 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
                 withContext(Dispatchers.IO) { getBackend().setState(tunnel, Tunnel.State.DOWN, null) }
             withContext(Dispatchers.IO) { configStore.rename(tunnel.name, name) }
             newName = tunnel.onNameChanged(name)
+            withContext(Dispatchers.IO) { getWireRouteStore().renameProfile(originalName, name) }
             if (originalState == Tunnel.State.UP)
                 withContext(Dispatchers.IO) { getBackend().setState(tunnel, Tunnel.State.UP, tunnel.config) }
         } catch (e: Throwable) {

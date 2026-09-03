@@ -16,7 +16,6 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
-import com.google.android.material.color.DynamicColors
 import com.wireguard.android.backend.Backend
 import com.wireguard.android.backend.GoBackend
 import com.wireguard.android.backend.WgQuickBackend
@@ -27,6 +26,8 @@ import com.wireguard.android.util.RootShell
 import com.wireguard.android.util.ToolsInstaller
 import com.wireguard.android.util.UserKnobs
 import com.wireguard.android.util.applicationScope
+import com.wireguard.android.wireroute.WireRouteActivitySampler
+import com.wireguard.android.wireroute.WireRouteStore
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -48,6 +49,8 @@ class Application : android.app.Application() {
     private lateinit var preferencesDataStore: DataStore<Preferences>
     private lateinit var toolsInstaller: ToolsInstaller
     private lateinit var tunnelManager: TunnelManager
+    private lateinit var wireRouteStore: WireRouteStore
+    private lateinit var wireRouteActivitySampler: WireRouteActivitySampler
 
     override fun attachBaseContext(context: Context) {
         super.attachBaseContext(context)
@@ -85,7 +88,6 @@ class Application : android.app.Application() {
     override fun onCreate() {
         Log.i(TAG, USER_AGENT)
         super.onCreate()
-        DynamicColors.applyToActivitiesIfAvailable(this)
         rootShell = RootShell(applicationContext)
         toolsInstaller = ToolsInstaller(applicationContext, rootShell)
         preferencesDataStore = PreferenceDataStoreFactory.create { applicationContext.preferencesDataStoreFile("settings") }
@@ -106,8 +108,11 @@ class Application : android.app.Application() {
         } else {
             AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
         }
+        wireRouteStore = WireRouteStore(applicationContext)
         tunnelManager = TunnelManager(FileConfigStore(applicationContext))
         tunnelManager.onCreate()
+        wireRouteActivitySampler = WireRouteActivitySampler(tunnelManager, wireRouteStore, coroutineScope)
+        wireRouteActivitySampler.start()
         coroutineScope.launch(Dispatchers.IO) {
             try {
                 backend = determineBackend()
@@ -147,6 +152,8 @@ class Application : android.app.Application() {
         fun getToolsInstaller() = get().toolsInstaller
 
         fun getTunnelManager() = get().tunnelManager
+
+        fun getWireRouteStore() = get().wireRouteStore
 
         fun getCoroutineScope() = get().coroutineScope
     }

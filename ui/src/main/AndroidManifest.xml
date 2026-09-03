@@ -56,7 +56,13 @@
 
         <activity
             android:name=".activity.MainActivity"
-            android:exported="true">
+            android:exported="false">
+        </activity>
+
+        <activity
+            android:name=".activity.WireRouteActivity"
+            android:exported="true"
+            android:theme="@style/WireRouteMainTheme">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -81,12 +87,12 @@
         <activity
             android:name=".activity.SettingsActivity"
             android:label="@string/settings"
-            android:parentActivityName=".activity.MainActivity" />
+            android:parentActivityName=".activity.WireRouteActivity" />
 
         <activity
             android:name=".activity.TunnelCreatorActivity"
             android:label="@string/create_activity_title"
-            android:parentActivityName=".activity.MainActivity" />
+            android:parentActivityName=".activity.WireRouteActivity" />
 
         <activity
             android:name="com.journeyapps.barcodescanner.CaptureActivity"
@@ -96,11 +102,7 @@
         <activity
             android:name=".activity.LogViewerActivity"
             android:exported="false"
-            android:label="@string/log_viewer_title">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-            </intent-filter>
-        </activity>
+            android:label="@string/log_viewer_title" />
 
         <provider
             android:name=".activity.LogViewerActivity$ExportedLogContentProvider"

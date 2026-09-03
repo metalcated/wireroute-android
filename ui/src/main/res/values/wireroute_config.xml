@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Deployment builds may override these resources without changing application code. -->
+    <string name="wireroute_map_tilejson_url" translatable="false">https://tiles.openfreemap.org/planet</string>
+    <string name="wireroute_map_sprite_url" translatable="false">https://tiles.openfreemap.org/sprites/ofm_f384/ofm</string>
+    <string name="wireroute_map_glyphs_url" translatable="false">https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf</string>
+    <string name="wireroute_map_detailed_style_url" translatable="false">https://tiles.openfreemap.org/styles/liberty</string>
+    <string name="wireroute_endpoint_location_url" translatable="false">https://ipwho.is/</string>
+    <string name="wireroute_help_base_url" translatable="false">https://github.com/metalcated/wireroute-apple/blob/main</string>
+</resources>

@@ -75,6 +75,7 @@ dependencies {
     implementation(libs.google.material)
     implementation(libs.zxing.android.embedded)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.maplibre.android)
     coreLibraryDesugaring(libs.desugarJdkLibs)
 }
 
