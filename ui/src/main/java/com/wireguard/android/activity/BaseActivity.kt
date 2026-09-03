@@ -91,6 +91,6 @@ abstract class BaseActivity : AppCompatActivity() {
         CallbackRegistry<OnSelectedTunnelChangedListener, ObservableTunnel, ObservableTunnel>(SelectionChangeNotifier())
 
     companion object {
-        private const val KEY_SELECTED_TUNNEL = "selected_tunnel"
+        const val KEY_SELECTED_TUNNEL = "selected_tunnel"
     }
 }

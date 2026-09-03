@@ -14,6 +14,9 @@ import com.wireguard.android.model.ObservableTunnel
 class TunnelCreatorActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        title = intent.getStringExtra(KEY_SELECTED_TUNNEL)?.let {
+            getString(R.string.edit_profile_title, it)
+        } ?: getString(R.string.create_activity_title)
         setContentView(R.layout.tunnel_creator_activity)
     }
 

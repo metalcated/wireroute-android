@@ -572,18 +572,30 @@ class WireRouteActivity : AppCompatActivity() {
         }
         column.addView(chartCard, matchWrap().bottom(16))
         val metrics = vertical()
-        val firstRow = horizontalRow(
-            metricCard("Download", palette.signalBlue).also { activityDownload = it.getChildAt(1) as TextView },
-            fixedSpacer(14),
-            metricCard("Upload", palette.liveTeal).also { activityUpload = it.getChildAt(1) as TextView }
-        )
-        val secondRow = horizontalRow(
-            metricCard("Session total", palette.secondaryLabel).also { activityTotal = it.getChildAt(1) as TextView },
-            fixedSpacer(14),
-            metricCard("Last handshake", palette.secondaryLabel).also { activityHandshake = it.getChildAt(1) as TextView }
-        )
-        metrics.addView(firstRow, matchFixed(92))
-        metrics.addView(secondRow, matchFixed(92).top(14))
+        val firstRow = horizontalRow().apply {
+            addView(
+                metricCard("Download", palette.signalBlue).also { activityDownload = it.getChildAt(1) as TextView },
+                weighted(74, 1f)
+            )
+            addView(fixedSpacer(14))
+            addView(
+                metricCard("Upload", palette.liveTeal).also { activityUpload = it.getChildAt(1) as TextView },
+                weighted(74, 1f)
+            )
+        }
+        val secondRow = horizontalRow().apply {
+            addView(
+                metricCard("Session total", palette.secondaryLabel).also { activityTotal = it.getChildAt(1) as TextView },
+                weighted(74, 1f)
+            )
+            addView(fixedSpacer(14))
+            addView(
+                metricCard("Last handshake", palette.secondaryLabel).also { activityHandshake = it.getChildAt(1) as TextView },
+                weighted(74, 1f)
+            )
+        }
+        metrics.addView(firstRow, matchFixed(74))
+        metrics.addView(secondRow, matchFixed(74).top(14))
         column.addView(metrics, matchWrap().bottom(24))
         column.addView(text("Recent connections", 22f, palette.label, true), matchWrap().bottom(14))
         activityHistory = vertical().apply { background = roundedBackground(palette.card, dp(20).toFloat(), alphaColor(palette.border, 0.65f), dp(1)) }
@@ -846,7 +858,7 @@ class WireRouteActivity : AppCompatActivity() {
     }
 
     private fun editTunnel(tunnel: ObservableTunnel) {
-        startActivity(Intent(this, TunnelCreatorActivity::class.java).putExtra("selected_tunnel", tunnel.name))
+        startActivity(Intent(this, TunnelCreatorActivity::class.java).putExtra(BaseActivity.KEY_SELECTED_TUNNEL, tunnel.name))
     }
 
     private fun requestExport(requested: List<ObservableTunnel>) {

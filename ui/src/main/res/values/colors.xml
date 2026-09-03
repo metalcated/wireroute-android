@@ -64,4 +64,14 @@
     <color name="md_theme_dark_surfaceTint">#ADC7FF</color>
     <color name="md_theme_dark_outlineVariant">#44474F</color>
     <color name="md_theme_dark_scrim">#000000</color>
+    <color name="wire_route_background">#111B2A</color>
+    <color name="wire_route_sidebar">#101A28</color>
+    <color name="wire_route_inset">#142235</color>
+    <color name="wire_route_card">#182638</color>
+    <color name="wire_route_raised">#213248</color>
+    <color name="wire_route_border">#354A62</color>
+    <color name="wire_route_signal_blue">#4C83F3</color>
+    <color name="wire_route_label">#F4F7FB</color>
+    <color name="wire_route_secondary_label">#98A3B5</color>
+    <color name="wire_route_tertiary_label">#657488</color>
 </resources>

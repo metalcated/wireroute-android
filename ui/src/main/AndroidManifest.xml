@@ -92,7 +92,8 @@
         <activity
             android:name=".activity.TunnelCreatorActivity"
             android:label="@string/create_activity_title"
-            android:parentActivityName=".activity.WireRouteActivity" />
+            android:parentActivityName=".activity.WireRouteActivity"
+            android:theme="@style/WireRouteEditorTheme" />
 
         <activity
             android:name="com.journeyapps.barcodescanner.CaptureActivity"
