@@ -22,6 +22,7 @@ import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.RadioButton
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
@@ -1147,26 +1148,72 @@ class WireRouteActivity : AppCompatActivity() {
         resolverField.addTextChangedListener(markCustomWatcher)
         bootstrapField.addTextChangedListener(markCustomWatcher)
         providerRow.setOnClickListener {
-            val presetLabels = dnsPresets.map { "${it.name}\n${it.detail}" } + "Custom\nUse your own HTTPS resolver."
             val selectedIndex = dnsPresets.indexOfFirst { it.name == selectedProvider }.let { if (it >= 0) it else dnsPresets.size }
-            MaterialAlertDialogBuilder(this)
-                .setTitle("Encrypted DNS resolver")
-                .setSingleChoiceItems(presetLabels.toTypedArray(), selectedIndex) { picker, which ->
-                    updatingFields = true
-                    if (which < dnsPresets.size) {
-                        val preset = dnsPresets[which]
-                        selectedProvider = preset.name
-                        resolverField.setText(preset.resolverUrl)
-                        bootstrapField.setText(preset.bootstrapAddresses.joinToString(", "))
-                    } else {
-                        selectedProvider = "Custom"
+            val choices = dnsPresets.map { it.name to it.detail } +
+                    ("Custom" to "Use your own HTTPS resolver.")
+            lateinit var picker: androidx.appcompat.app.AlertDialog
+            val choiceList = vertical().apply {
+                setPadding(0, dp(4), 0, dp(4))
+                choices.forEachIndexed { index, choice ->
+                    val selected = index == selectedIndex
+                    val radio = RadioButton(this@WireRouteActivity).apply {
+                        isChecked = selected
+                        isClickable = false
+                        isFocusable = false
                     }
-                    providerValue.text = selectedProvider
-                    updatingFields = false
-                    picker.dismiss()
+                    val labels = vertical().apply {
+                        layoutParams = weighted(ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                        addView(text(choice.first, 16f, palette.label, true), matchWrap())
+                        addView(text(choice.second, 14f, palette.secondaryLabel).apply {
+                            setLineSpacing(0f, 1.08f)
+                        }, matchWrap().top(3))
+                    }
+                    val row = horizontalRow(radio, labels).apply {
+                        gravity = Gravity.TOP
+                        setPadding(dp(12), dp(12), dp(16), dp(12))
+                        if (selected) {
+                            background = roundedBackground(
+                                alphaColor(palette.signalBlue, 0.10f),
+                                dp(14).toFloat()
+                            )
+                        }
+                        isClickable = true
+                        isFocusable = true
+                        contentDescription = "${choice.first}. ${choice.second}"
+                        setOnClickListener {
+                            updatingFields = true
+                            if (index < dnsPresets.size) {
+                                val preset = dnsPresets[index]
+                                selectedProvider = preset.name
+                                resolverField.setText(preset.resolverUrl)
+                                bootstrapField.setText(preset.bootstrapAddresses.joinToString(", "))
+                            } else {
+                                selectedProvider = "Custom"
+                            }
+                            providerValue.text = selectedProvider
+                            updatingFields = false
+                            picker.dismiss()
+                        }
+                    }
+                    addView(row, matchWrap().horizontal(8))
+                    if (index < choices.lastIndex) {
+                        addView(divider(), matchFixed(1).horizontal(64))
+                    }
                 }
+            }
+            val choiceScroll = ScrollView(this).apply {
+                isFillViewport = false
+                addView(choiceList, ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ))
+            }
+            picker = MaterialAlertDialogBuilder(this)
+                .setTitle("Encrypted DNS resolver")
+                .setView(choiceScroll)
                 .setNegativeButton("Cancel", null)
-                .show()
+                .create()
+            picker.show()
         }
 
         updateMode()
