@@ -123,7 +123,7 @@ fun roundedTypeface(style: Int = Typeface.NORMAL): Typeface = Typeface.create("s
 enum class WireRouteIcon {
     HOME, PROFILES, ACTIVITY, SETTINGS, PLUS, POWER, BACK, SLIDERS, LAYERS, LOCATION,
     INFO, MORE, SHIELD, APP, ENGINE, PALETTE, HISTORY, EXPORT, LOG, CHEVRON_RIGHT,
-    CHEVRON_DOWN, LOCK_OPEN, LOCKED, DNS, GLOBE, ROUTE
+    CHEVRON_DOWN, LOCK_OPEN, LOCKED, DNS, GLOBE, ROUTE, PENCIL
 }
 
 class WireRouteIconView(context: Context) : View(context) {
@@ -222,6 +222,7 @@ class WireRouteIconView(context: Context) : View(context) {
             }
             WireRouteIcon.GLOBE -> { canvas.drawCircle(12, 12, 9, paint); canvas.drawOval(rect(8, 3, 16, 21), paint); canvas.drawLine(3, 12, 21, 12, paint) }
             WireRouteIcon.ROUTE -> { path.moveTo(4, 12); path.lineTo(11, 12); path.lineTo(20, 5); path.moveTo(11, 12); path.lineTo(20, 19); canvas.drawPath(path, paint); canvas.drawCircle(4, 12, 1.7f, fill); canvas.drawCircle(20, 5, 1.7f, fill); canvas.drawCircle(20, 19, 1.7f, fill) }
+            WireRouteIcon.PENCIL -> { path.moveTo(5, 19); path.lineTo(7, 14); path.lineTo(16.5f, 4.5f); path.lineTo(19.5f, 7.5f); path.lineTo(10, 17); path.close(); canvas.drawPath(path, paint); canvas.drawLine(14.5f, 6.5f, 17.5f, 9.5f, paint) }
         }
         canvas.restore()
     }

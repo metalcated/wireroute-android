@@ -19,6 +19,7 @@ import com.wireguard.util.NonNullForAll;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -46,6 +47,8 @@ public final class WgQuickBackend implements Backend {
     private final RootShell rootShell;
     private final Map<Tunnel, Config> runningConfigs = new HashMap<>();
     private final ToolsInstaller toolsInstaller;
+    private DnsProtectionPolicy.Provider dnsProtectionPolicyProvider =
+            profileName -> DnsProtectionPolicy.profile();
     private boolean multipleTunnels;
 
     public WgQuickBackend(final Context context, final RootShell rootShell, final ToolsInstaller toolsInstaller) {
@@ -123,6 +126,10 @@ public final class WgQuickBackend implements Backend {
         multipleTunnels = on;
     }
 
+    public void setDnsProtectionPolicyProvider(final DnsProtectionPolicy.Provider provider) {
+        dnsProtectionPolicyProvider = provider;
+    }
+
     @Override
     public State setState(final Tunnel tunnel, State state, @Nullable final Config config) throws Exception {
         final State originalState = getState(tunnel);
@@ -182,19 +189,30 @@ public final class WgQuickBackend implements Backend {
 
         Objects.requireNonNull(config, "Trying to set state up with a null config");
 
-        final File tempFile = new File(localTemporaryDir, tunnel.getName() + ".conf");
-        try (final FileOutputStream stream = new FileOutputStream(tempFile, false)) {
-            stream.write(config.toWgQuickString().getBytes(StandardCharsets.UTF_8));
+        if (state == State.UP) {
+            final DnsProtectionPolicy dnsProtectionPolicy =
+                    dnsProtectionPolicyProvider.getPolicy(tunnel.getName());
+            if (dnsProtectionPolicy.getMode() == DnsProtectionPolicy.Mode.ENCRYPTED_HTTPS)
+                throw new IOException(
+                        "Close and reopen WireRoute to use encrypted DNS with the userspace VPN engine.");
         }
-        String command = String.format("wg-quick %s '%s'",
-                state.toString().toLowerCase(Locale.ENGLISH), tempFile.getAbsolutePath());
-        if (state == State.UP)
-            command = "cat /sys/module/wireguard/version && " + command;
-        final int result = rootShell.run(null, command);
-        // noinspection ResultOfMethodCallIgnored
-        tempFile.delete();
-        if (result != 0)
-            throw new BackendException(Reason.WG_QUICK_CONFIG_ERROR_CODE, result);
+
+        final File tempFile = new File(localTemporaryDir, tunnel.getName() + ".conf");
+        try {
+            try (final FileOutputStream stream = new FileOutputStream(tempFile, false)) {
+                stream.write(config.toWgQuickString().getBytes(StandardCharsets.UTF_8));
+            }
+            String command = String.format("wg-quick %s '%s'",
+                    state.toString().toLowerCase(Locale.ENGLISH), tempFile.getAbsolutePath());
+            if (state == State.UP)
+                command = "cat /sys/module/wireguard/version && " + command;
+            final int result = rootShell.run(null, command);
+            if (result != 0)
+                throw new BackendException(Reason.WG_QUICK_CONFIG_ERROR_CODE, result);
+        } finally {
+            // noinspection ResultOfMethodCallIgnored
+            tempFile.delete();
+        }
 
         if (state == State.UP)
             runningConfigs.put(tunnel, config);

@@ -5,6 +5,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import com.wireguard.android.backend.DnsProtectionPolicy
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.model.TunnelManager
 import kotlinx.coroutines.CoroutineScope
@@ -37,6 +38,48 @@ data class WireRouteActivitySession(
     val lastHandshake: Long?
 )
 
+data class WireRouteDnsPolicy(
+    val mode: String,
+    val provider: String,
+    val resolverUrl: String?,
+    val bootstrapAddresses: List<String>
+) {
+    val isEncrypted: Boolean
+        get() = mode == WireRouteStore.DNS_MODE_ENCRYPTED
+
+    fun toBackendPolicy(): DnsProtectionPolicy = if (isEncrypted) {
+        DnsProtectionPolicy.encryptedHttps(
+            requireNotNull(resolverUrl) { "This profile does not contain an encrypted DNS resolver URL." },
+            bootstrapAddresses
+        )
+    } else {
+        DnsProtectionPolicy.profile()
+    }
+
+    companion object {
+        fun profile() = WireRouteDnsPolicy(
+            mode = WireRouteStore.DNS_MODE_PROFILE,
+            provider = "Profile DNS",
+            resolverUrl = null,
+            bootstrapAddresses = emptyList()
+        )
+
+        fun encrypted(
+            provider: String,
+            resolverUrl: String,
+            bootstrapAddresses: List<String>
+        ): WireRouteDnsPolicy {
+            val validated = DnsProtectionPolicy.encryptedHttps(resolverUrl, bootstrapAddresses)
+            return WireRouteDnsPolicy(
+                mode = WireRouteStore.DNS_MODE_ENCRYPTED,
+                provider = provider.ifBlank { "Custom" },
+                resolverUrl = validated.resolverUri.toASCIIString(),
+                bootstrapAddresses = validated.bootstrapAddresses
+            )
+        }
+    }
+}
+
 /** Device-local WireRoute metadata and activity history. Private tunnel keys remain in the
  * existing protected configuration store and are never copied into this database. */
 class WireRouteStore(context: Context) : SQLiteOpenHelper(
@@ -53,7 +96,9 @@ class WireRouteStore(context: Context) : SQLiteOpenHelper(
                 routing_mode TEXT NOT NULL DEFAULT 'split',
                 split_routes TEXT,
                 dns_mode TEXT NOT NULL DEFAULT 'profile',
-                dns_label TEXT NOT NULL DEFAULT 'Profile DNS'
+                dns_label TEXT NOT NULL DEFAULT 'Profile DNS',
+                dns_url TEXT,
+                dns_bootstrap TEXT
             )"""
         )
         database.execSQL(
@@ -89,7 +134,12 @@ class WireRouteStore(context: Context) : SQLiteOpenHelper(
         database.setForeignKeyConstraintsEnabled(true)
     }
 
-    override fun onUpgrade(database: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+    override fun onUpgrade(database: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 2) {
+            database.execSQL("ALTER TABLE profile_metadata ADD COLUMN dns_url TEXT")
+            database.execSQL("ALTER TABLE profile_metadata ADD COLUMN dns_bootstrap TEXT")
+        }
+    }
 
     @Synchronized
     fun setting(key: String, fallback: String): String {
@@ -159,6 +209,63 @@ class WireRouteStore(context: Context) : SQLiteOpenHelper(
             if (!cursor.moveToFirst() || cursor.isNull(0)) return null
             return decodeRoutes(cursor.getString(0))
         }
+    }
+
+    @Synchronized
+    fun dnsPolicy(profileName: String): WireRouteDnsPolicy {
+        readableDatabase.query(
+            "profile_metadata",
+            arrayOf("dns_mode", "dns_label", "dns_url", "dns_bootstrap"),
+            "profile_name = ?",
+            arrayOf(profileName),
+            null,
+            null,
+            null
+        ).use { cursor ->
+            if (!cursor.moveToFirst()) return WireRouteDnsPolicy.profile()
+            val mode = cursor.getString(0)
+            if (mode != DNS_MODE_ENCRYPTED) return WireRouteDnsPolicy.profile()
+            return WireRouteDnsPolicy(
+                mode = mode,
+                provider = cursor.getString(1).ifBlank { "Custom" },
+                resolverUrl = if (cursor.isNull(2)) null else cursor.getString(2),
+                bootstrapAddresses = if (cursor.isNull(3)) emptyList() else decodeStringList(cursor.getString(3))
+            )
+        }
+    }
+
+    @Synchronized
+    fun saveDnsPolicy(profileName: String, policy: WireRouteDnsPolicy) {
+        policy.toBackendPolicy()
+        val values = ContentValues().apply {
+            put("profile_name", profileName)
+            put("dns_mode", policy.mode)
+            put("dns_label", policy.provider)
+            if (policy.resolverUrl == null) putNull("dns_url") else put("dns_url", policy.resolverUrl)
+            if (policy.bootstrapAddresses.isEmpty()) putNull("dns_bootstrap")
+            else put("dns_bootstrap", JSONArray(policy.bootstrapAddresses).toString())
+        }
+        writableDatabase.insertWithOnConflict(
+            "profile_metadata",
+            null,
+            values,
+            SQLiteDatabase.CONFLICT_IGNORE
+        )
+        writableDatabase.update("profile_metadata", values, "profile_name = ?", arrayOf(profileName))
+    }
+
+    @Synchronized
+    fun hasEncryptedDnsPolicies(): Boolean {
+        readableDatabase.query(
+            "profile_metadata",
+            arrayOf("profile_name"),
+            "dns_mode = ?",
+            arrayOf(DNS_MODE_ENCRYPTED),
+            null,
+            null,
+            null,
+            "1"
+        ).use { cursor -> return cursor.moveToFirst() }
     }
 
     @Synchronized
@@ -319,13 +426,22 @@ class WireRouteStore(context: Context) : SQLiteOpenHelper(
         }
     }
 
+    private fun decodeStringList(raw: String): List<String> {
+        return runCatching {
+            val array = JSONArray(raw)
+            (0 until array.length()).map(array::getString)
+        }.getOrDefault(emptyList())
+    }
+
     companion object {
-        private const val DATABASE_VERSION = 1
+        private const val DATABASE_VERSION = 2
         private const val DAY_MILLIS = 24L * 60 * 60 * 1000
         const val APPEARANCE_NORDIC = "blueNordic"
         const val APPEARANCE_SYSTEM = "system"
         const val ROUTING_SPLIT = "split"
         const val ROUTING_FULL = "full"
+        const val DNS_MODE_PROFILE = "profile"
+        const val DNS_MODE_ENCRYPTED = "encryptedHTTPS"
         private const val SETTING_SELECTED_PROFILE = "selected_profile"
         private const val SETTING_APPEARANCE = "appearance"
         private const val SETTING_RETENTION_DAYS = "activity_retention_days"

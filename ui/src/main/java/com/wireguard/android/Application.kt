@@ -66,10 +66,14 @@ class Application : android.app.Application() {
 
     private suspend fun determineBackend(): Backend {
         var backend: Backend? = null
-        if (UserKnobs.enableKernelModule.first() && WgQuickBackend.hasKernelSupport()) {
+        val encryptedDnsRequiresUserspace = wireRouteStore.hasEncryptedDnsPolicies()
+        if (!encryptedDnsRequiresUserspace && UserKnobs.enableKernelModule.first() && WgQuickBackend.hasKernelSupport()) {
             try {
                 rootShell.start()
                 val wgQuickBackend = WgQuickBackend(applicationContext, rootShell, toolsInstaller)
+                wgQuickBackend.setDnsProtectionPolicyProvider { profileName ->
+                    wireRouteStore.dnsPolicy(profileName).toBackendPolicy()
+                }
                 wgQuickBackend.setMultipleTunnels(UserKnobs.multipleTunnels.first())
                 backend = wgQuickBackend
                 UserKnobs.multipleTunnels.onEach {
@@ -79,7 +83,11 @@ class Application : android.app.Application() {
             }
         }
         if (backend == null) {
-            backend = GoBackend(applicationContext)
+            backend = GoBackend(applicationContext).apply {
+                setDnsProtectionPolicyProvider { profileName ->
+                    wireRouteStore.dnsPolicy(profileName).toBackendPolicy()
+                }
+            }
             GoBackend.setAlwaysOnCallback { get().applicationScope.launch { get().tunnelManager.restoreState(true) } }
         }
         return backend

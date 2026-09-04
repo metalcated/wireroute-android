@@ -10,7 +10,7 @@ Profile addresses, endpoints, keys, DNS servers, routes, and RouterOS values com
 
 - Create, edit, import, export, and scan standard WireGuard profiles.
 - Select Split Tunnel or Full Tunnel routing per profile while preserving saved specific routes.
-- Use DNS servers stored in each profile.
+- Choose profile DNS or per-profile encrypted DNS-over-HTTPS protection, with built-in resolver presets and configurable bootstrap addresses.
 - Connect and disconnect profiles through the Android VPN service.
 - Review live transfer rates, local connection history, and diagnostics.
 - Preview the approximate location of a configured public endpoint on an OpenFreeMap map after an explicit privacy confirmation.

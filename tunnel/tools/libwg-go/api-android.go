@@ -21,6 +21,7 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/unix"
+	"golang.zx2c4.com/wireguard/android/dnstun"
 	"golang.zx2c4.com/wireguard/conn"
 	"golang.zx2c4.com/wireguard/device"
 	"golang.zx2c4.com/wireguard/ipc"
@@ -73,14 +74,14 @@ func init() {
 }
 
 //export wgTurnOn
-func wgTurnOn(interfaceName string, tunFd int32, settings string) int32 {
+func wgTurnOn(interfaceName string, tunFd int32, settings, dnsResolverURL, dnsBootstrapAddresses, dnsVirtualAddress string) int32 {
 	tag := cstring("WireGuard/GoBackend/" + interfaceName)
 	logger := &device.Logger{
 		Verbosef: AndroidLogger{level: C.ANDROID_LOG_DEBUG, tag: tag}.Printf,
 		Errorf:   AndroidLogger{level: C.ANDROID_LOG_ERROR, tag: tag}.Printf,
 	}
 
-	tun, name, err := tun.CreateUnmonitoredTUNFromFD(int(tunFd))
+	tunDevice, name, err := tun.CreateUnmonitoredTUNFromFD(int(tunFd))
 	if err != nil {
 		unix.Close(int(tunFd))
 		logger.Errorf("CreateUnmonitoredTUNFromFD: %v", err)
@@ -88,7 +89,22 @@ func wgTurnOn(interfaceName string, tunFd int32, settings string) int32 {
 	}
 
 	logger.Verbosef("Attaching to interface %v", name)
-	device := device.NewDevice(tun, conn.NewStdNetBind(), logger)
+	if dnsResolverURL != "" {
+		wrapped, wrapErr := dnstun.Wrap(tunDevice, dnstun.Config{
+			ResolverURL:        dnsResolverURL,
+			BootstrapAddresses: strings.Split(dnsBootstrapAddresses, ","),
+			VirtualAddress:     dnsVirtualAddress,
+			Logf:               logger.Errorf,
+		})
+		if wrapErr != nil {
+			unix.Close(int(tunFd))
+			logger.Errorf("Encrypted DNS: %v", wrapErr)
+			return -1
+		}
+		tunDevice = wrapped
+		logger.Verbosef("Encrypted DNS attached at %v", dnsVirtualAddress)
+	}
+	device := device.NewDevice(tunDevice, conn.NewStdNetBind(), logger)
 
 	err = device.IpcSet(settings)
 	if err != nil {

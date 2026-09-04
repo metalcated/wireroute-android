@@ -14,4 +14,4 @@ Security fixes target the current development branch and most recent published A
 
 ## Scope
 
-This policy covers the WireRoute Android application, VPN-service integration, routing logic, profile handling, local activity storage, endpoint map, and diagnostics. Problems in a user-operated VPN endpoint, RouterOS installation, Android platform, or unrelated third-party service should be reported to that project's owner.
+This policy covers the WireRoute Android application, VPN-service integration, routing and DNS Protection logic, profile handling, local activity storage, endpoint map, and diagnostics. Problems in a user-operated VPN endpoint, DNS resolver, RouterOS installation, Android platform, or unrelated third-party service should be reported to that project's owner.

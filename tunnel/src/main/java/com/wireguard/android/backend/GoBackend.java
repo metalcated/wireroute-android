@@ -25,6 +25,7 @@ import com.wireguard.util.NonNullForAll;
 
 import java.net.InetAddress;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -47,6 +48,8 @@ public final class GoBackend implements Backend {
     private final Context context;
     @Nullable private Config currentConfig;
     @Nullable private Tunnel currentTunnel;
+    private DnsProtectionPolicy.Provider dnsProtectionPolicyProvider =
+            profileName -> DnsProtectionPolicy.profile();
     private int currentTunnelHandle = -1;
 
     /**
@@ -69,6 +72,10 @@ public final class GoBackend implements Backend {
         alwaysOnCallback = cb;
     }
 
+    public void setDnsProtectionPolicyProvider(final DnsProtectionPolicy.Provider provider) {
+        dnsProtectionPolicyProvider = provider;
+    }
+
     @Nullable private static native String wgGetConfig(int handle);
 
     private static native int wgGetSocketV4(int handle);
@@ -77,7 +84,13 @@ public final class GoBackend implements Backend {
 
     private static native void wgTurnOff(int handle);
 
-    private static native int wgTurnOn(String ifName, int tunFd, String settings);
+    private static native int wgTurnOn(
+            String ifName,
+            int tunFd,
+            String settings,
+            String dnsResolverUrl,
+            String dnsBootstrapAddresses,
+            String dnsVirtualAddress);
 
     private static native String wgVersion();
 
@@ -290,26 +303,35 @@ public final class GoBackend implements Backend {
                 break;
             }
 
+            final DnsProtectionPolicy dnsProtectionPolicy =
+                    dnsProtectionPolicyProvider.getPolicy(tunnel.getName());
+            final boolean encryptedDns =
+                    dnsProtectionPolicy.getMode() == DnsProtectionPolicy.Mode.ENCRYPTED_HTTPS;
+            final List<String> dnsBootstrapAddresses = encryptedDns
+                    ? dnsProtectionPolicy.getEffectiveBootstrapAddresses()
+                    : Collections.emptyList();
+            final Config runtimeConfig = dnsProtectionPolicy.applyTo(config);
+
             // Build config
-            final String goConfig = config.toWgUserspaceString();
+            final String goConfig = runtimeConfig.toWgUserspaceString();
 
             // Create the vpn tunnel with android API
             final VpnService.Builder builder = service.getBuilder();
             builder.setSession(tunnel.getName());
 
-            for (final String excludedApplication : config.getInterface().getExcludedApplications())
+            for (final String excludedApplication : runtimeConfig.getInterface().getExcludedApplications())
                 builder.addDisallowedApplication(excludedApplication);
 
-            for (final String includedApplication : config.getInterface().getIncludedApplications())
+            for (final String includedApplication : runtimeConfig.getInterface().getIncludedApplications())
                 builder.addAllowedApplication(includedApplication);
 
-            for (final InetNetwork addr : config.getInterface().getAddresses())
+            for (final InetNetwork addr : runtimeConfig.getInterface().getAddresses())
                 builder.addAddress(addr.getAddress(), addr.getMask());
 
-            for (final InetAddress addr : config.getInterface().getDnsServers())
+            for (final InetAddress addr : runtimeConfig.getInterface().getDnsServers())
                 builder.addDnsServer(addr.getHostAddress());
 
-            for (final String dnsSearchDomain : config.getInterface().getDnsSearchDomains())
+            for (final String dnsSearchDomain : runtimeConfig.getInterface().getDnsSearchDomains())
                 builder.addSearchDomain(dnsSearchDomain);
 
             boolean sawDefaultRoute = false;
@@ -320,6 +342,8 @@ public final class GoBackend implements Backend {
                     builder.addRoute(addr.getAddress(), addr.getMask());
                 }
             }
+            if (encryptedDns)
+                builder.addRoute(DnsProtectionPolicy.virtualDnsAddress(), 32);
 
             // "Kill-switch" semantics
             if (!(sawDefaultRoute && config.getPeers().size() == 1)) {
@@ -327,7 +351,7 @@ public final class GoBackend implements Backend {
                 builder.allowFamily(OsConstants.AF_INET6);
             }
 
-            builder.setMtu(config.getInterface().getMtu().orElse(1280));
+            builder.setMtu(runtimeConfig.getInterface().getMtu().orElse(1280));
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
                 builder.setMetered(false);
@@ -338,7 +362,13 @@ public final class GoBackend implements Backend {
                 if (tun == null)
                     throw new BackendException(Reason.TUN_CREATION_ERROR);
                 Log.d(TAG, "Go backend " + wgVersion());
-                currentTunnelHandle = wgTurnOn(tunnel.getName(), tun.detachFd(), goConfig);
+                currentTunnelHandle = wgTurnOn(
+                        tunnel.getName(),
+                        tun.detachFd(),
+                        goConfig,
+                        encryptedDns ? dnsProtectionPolicy.getResolverUri().toASCIIString() : "",
+                        String.join(",", dnsBootstrapAddresses),
+                        encryptedDns ? DnsProtectionPolicy.virtualDnsAddress().getHostAddress() : "");
             }
             if (currentTunnelHandle < 0)
                 throw new BackendException(Reason.GO_ACTIVATION_ERROR_CODE, currentTunnelHandle);

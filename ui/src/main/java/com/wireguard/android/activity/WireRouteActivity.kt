@@ -9,7 +9,9 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.net.Uri
 import android.os.Bundle
+import android.text.Editable
 import android.text.InputType
+import android.text.TextWatcher
 import android.text.format.DateUtils
 import android.text.format.Formatter
 import android.view.Gravity
@@ -41,6 +43,7 @@ import com.wireguard.android.BuildConfig
 import com.wireguard.android.R
 import com.wireguard.android.backend.GoBackend
 import com.wireguard.android.backend.Tunnel
+import com.wireguard.android.backend.WgQuickBackend
 import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.util.ErrorMessages
 import com.wireguard.android.util.TunnelImporter
@@ -54,6 +57,7 @@ import com.wireguard.android.wireroute.WireRouteIconView
 import com.wireguard.android.wireroute.WireRoutePalette
 import com.wireguard.android.wireroute.WireRouteRouting
 import com.wireguard.android.wireroute.WireRouteMissingSplitRoutesException
+import com.wireguard.android.wireroute.WireRouteDnsPolicy
 import com.wireguard.android.wireroute.WireRouteStore
 import com.wireguard.android.wireroute.WireRouteTrafficChartView
 import com.wireguard.android.wireroute.alphaColor
@@ -61,6 +65,7 @@ import com.wireguard.android.wireroute.roundedBackground
 import com.wireguard.android.wireroute.roundedTypeface
 import com.wireguard.config.Config
 import com.wireguard.config.InetEndpoint
+import com.wireguard.config.InetNetwork
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -78,6 +83,7 @@ import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.Style
 import org.maplibre.android.annotations.IconFactory
 import java.nio.charset.StandardCharsets
+import java.net.InetAddress
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -94,6 +100,56 @@ class WireRouteActivity : AppCompatActivity() {
         val retentionDays: Int,
         val privacyAcknowledged: Boolean
     )
+    private data class DnsPreset(
+        val name: String,
+        val detail: String,
+        val resolverUrl: String,
+        val bootstrapAddresses: List<String>
+    )
+    private val dnsPresets = listOf(
+        DnsPreset(
+            "Cloudflare",
+            "General-purpose encrypted DNS without content filtering.",
+            "https://cloudflare-dns.com/dns-query",
+            listOf("1.1.1.1", "1.0.0.1", "2606:4700:4700::1111", "2606:4700:4700::1001")
+        ),
+        DnsPreset(
+            "Cloudflare Security",
+            "Blocks domains associated with malware and phishing.",
+            "https://security.cloudflare-dns.com/dns-query",
+            listOf("1.1.1.2", "1.0.0.2", "2606:4700:4700::1112", "2606:4700:4700::1002")
+        ),
+        DnsPreset(
+            "Cloudflare Family",
+            "Blocks malware and adult content.",
+            "https://family.cloudflare-dns.com/dns-query",
+            listOf("1.1.1.3", "1.0.0.3", "2606:4700:4700::1113", "2606:4700:4700::1003")
+        ),
+        DnsPreset(
+            "AdGuard DNS",
+            "Blocks ads and trackers.",
+            "https://dns.adguard-dns.com/dns-query",
+            listOf("94.140.14.14", "94.140.15.15", "2a10:50c0::ad1:ff", "2a10:50c0::ad2:ff")
+        ),
+        DnsPreset(
+            "AdGuard Family",
+            "Blocks ads, trackers, and adult content, with Safe Search where available.",
+            "https://family.adguard-dns.com/dns-query",
+            listOf("94.140.14.15", "94.140.15.16", "2a10:50c0::bad1:ff", "2a10:50c0::bad2:ff")
+        ),
+        DnsPreset(
+            "Quad9 Secure",
+            "Blocks known malicious domains.",
+            "https://dns.quad9.net/dns-query",
+            listOf("9.9.9.9", "149.112.112.112", "2620:fe::fe", "2620:fe::9")
+        ),
+        DnsPreset(
+            "Google Public DNS",
+            "General-purpose encrypted DNS without content filtering.",
+            "https://dns.google/dns-query",
+            listOf("8.8.8.8", "8.8.4.4", "2001:4860:4860::8888", "2001:4860:4860::8844")
+        )
+    )
 
     private lateinit var store: WireRouteStore
     private lateinit var palette: WireRoutePalette
@@ -109,6 +165,7 @@ class WireRouteActivity : AppCompatActivity() {
     private var appearanceMode = WireRouteStore.APPEARANCE_NORDIC
     private var activityRetentionDays = 7
     private var routingModes: Map<String, String> = emptyMap()
+    private var dnsPolicies: Map<String, WireRouteDnsPolicy> = emptyMap()
     private val pendingTunnels = mutableSetOf<String>()
     private var refreshJob: Job? = null
     private var lastTunnelFingerprint = ""
@@ -289,14 +346,19 @@ class WireRouteActivity : AppCompatActivity() {
             selectedProfileName = withContext(Dispatchers.IO) { store.selectedProfile() }
             selectedProfileLoaded = true
         }
-        routingModes = withContext(Dispatchers.IO) {
+        val metadata = withContext(Dispatchers.IO) {
             updated.associate { tunnel ->
-                tunnel.name to store.routingMode(
-                    tunnel.name,
-                    tunnel.config?.let(WireRouteRouting::isFullTunnel) == true
+                tunnel.name to Pair(
+                    store.routingMode(
+                        tunnel.name,
+                        tunnel.config?.let(WireRouteRouting::isFullTunnel) == true
+                    ),
+                    store.dnsPolicy(tunnel.name)
                 )
             }
         }
+        routingModes = metadata.mapValues { it.value.first }
+        dnsPolicies = metadata.mapValues { it.value.second }
         selectedTunnel = selectedTunnel?.let { current -> updated.firstOrNull { it.name == current.name } }
             ?: updated.firstOrNull { it.state == Tunnel.State.UP }
             ?: selectedProfileName?.let { saved -> updated.firstOrNull { it.name == saved } }
@@ -309,7 +371,7 @@ class WireRouteActivity : AppCompatActivity() {
         }
         tunnels = updated
         val fingerprint = updated.joinToString("|") {
-            "${it.name}:${it.state}:${it.config?.hashCode() ?: 0}:${pendingTunnels.contains(it.name)}"
+            "${it.name}:${it.state}:${it.config?.hashCode() ?: 0}:${pendingTunnels.contains(it.name)}:${dnsPolicies[it.name]?.hashCode() ?: 0}"
         }
         if (forceRender || fingerprint != lastTunnelFingerprint) {
             lastTunnelFingerprint = fingerprint
@@ -413,7 +475,7 @@ class WireRouteActivity : AppCompatActivity() {
         val mode = routingMode(tunnel)
         val summary = horizontalRow(
             summaryBlock("Routing", if (mode == WireRouteStore.ROUTING_FULL) "Full tunnel" else "Split tunnel"),
-            summaryBlock("DNS Protection", if (config?.`interface`?.dnsServers?.isEmpty() != false) "Not configured" else "Profile DNS")
+            summaryBlock("DNS Protection", dnsDetail(tunnel))
         )
         card.addView(summary, matchWrap().top(22))
         card.addView(connectionButton(tunnel), matchFixed(58).top(22))
@@ -492,7 +554,7 @@ class WireRouteActivity : AppCompatActivity() {
         }, matchFixed(104).bottom(38))
         column.addView(routingCard(tunnel), matchWrap().bottom(38))
         column.addView(actionCard(WireRouteIcon.DNS, "DNS Protection", dnsDetail(tunnel)) { showDNSProtection(tunnel) }, matchFixed(104))
-        column.addView(text("Use the DNS servers saved in this WireGuard profile.", 15f, palette.secondaryLabel), matchWrap().horizontal(20).top(10).bottom(30))
+        column.addView(text(dnsDescription(tunnel), 15f, palette.secondaryLabel), matchWrap().horizontal(20).top(10).bottom(30))
         column.addView(text("Interface", 16f, palette.secondaryLabel, true), matchWrap().horizontal(20).bottom(10))
         column.addView(interfaceCard(tunnel), matchWrap().bottom(34))
         contentHost.addView(scroll, frameMatch())
@@ -885,19 +947,273 @@ class WireRouteActivity : AppCompatActivity() {
 
     private fun showDNSProtection(tunnel: ObservableTunnel) {
         val config = tunnel.config
-        val servers = config?.`interface`?.dnsServers?.joinToString(", ") { it.hostAddress ?: it.toString() }.orEmpty()
-        val domains = config?.`interface`?.dnsSearchDomains?.joinToString(", ").orEmpty()
-        val message = buildString {
-            append("Use the DNS servers saved in this WireGuard profile.\n\n")
-            append("Configured DNS servers\n")
-            append(servers.ifBlank { "No DNS servers are configured." })
-            if (domains.isNotBlank()) append("\n\nSearch domains\n$domains")
+        val interfaceConfig = config?.`interface`
+        val initialPolicy = dnsPolicies[tunnel.name] ?: WireRouteDnsPolicy.profile()
+        val defaultEncryptedPolicy = dnsPresets.first()
+        var selectedMode = initialPolicy.mode
+        var selectedProvider = if (initialPolicy.isEncrypted) initialPolicy.provider else defaultEncryptedPolicy.name
+        var updatingFields = false
+
+        fun panelTitle(value: String) = text(value, 16f, palette.label, true)
+        fun explanatory(value: String) = text(value, 15f, palette.secondaryLabel)
+        fun inputField(hint: String, value: String, minimumLines: Int = 1) = EditText(this).apply {
+            this.hint = hint
+            setText(value)
+            setTextColor(palette.label)
+            setHintTextColor(palette.tertiaryLabel)
+            textSize = 15f
+            typeface = android.graphics.Typeface.MONOSPACE
+            minLines = minimumLines
+            maxLines = if (minimumLines > 1) 4 else 2
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS or
+                    if (minimumLines > 1) InputType.TYPE_TEXT_FLAG_MULTI_LINE else 0
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            background = roundedBackground(
+                palette.inset,
+                dp(12).toFloat(),
+                alphaColor(palette.border, 0.82f),
+                dp(1)
+            )
         }
-        MaterialAlertDialogBuilder(this).setTitle("DNS Protection")
-            .setMessage(message)
-            .setNegativeButton("Done", null)
-            .setPositiveButton("Edit Profile DNS") { _, _ -> editTunnel(tunnel) }
-            .show()
+        fun routeBadge(routedThroughVpn: Boolean) = text(
+            if (routedThroughVpn) "Via VPN" else "Outside VPN",
+            13f,
+            if (routedThroughVpn) palette.liveTeal else palette.warningAmber,
+            true,
+            Gravity.CENTER
+        ).apply {
+            setPadding(dp(10), dp(5), dp(10), dp(5))
+            background = roundedBackground(
+                alphaColor(if (routedThroughVpn) palette.liveTeal else palette.warningAmber, 0.18f),
+                dp(14).toFloat()
+            )
+        }
+
+        val profilePanel = vertical().apply {
+            addView(panelTitle("Profile resolution path"), matchWrap().top(22))
+            addView(explanatory("The DNS values below come directly from this WireRoute profile."), matchWrap().top(8))
+            addView(panelTitle("Configured DNS servers"), matchWrap().top(22).bottom(8))
+            val servers = interfaceConfig?.dnsServers.orEmpty()
+            if (servers.isEmpty()) {
+                addView(explanatory("No DNS servers are configured in this profile."), matchWrap())
+            } else {
+                servers.forEach { server ->
+                    addView(horizontalRow(
+                        icon(WireRouteIcon.DNS, palette.signalBlue, 19),
+                        text(server.hostAddress ?: server.toString(), 15f, palette.label, monospace = true).apply {
+                            setPadding(dp(10), 0, dp(10), 0)
+                        },
+                        spacer(),
+                        routeBadge(isDnsServerRoutedThroughVpn(config, server))
+                    ).apply {
+                        setPadding(dp(13), dp(10), dp(13), dp(10))
+                        background = roundedBackground(palette.raised, dp(13).toFloat())
+                    }, matchWrap().vertical(4))
+                }
+            }
+            val domains = interfaceConfig?.dnsSearchDomains.orEmpty()
+            if (domains.isNotEmpty()) {
+                addView(panelTitle("Search domains"), matchWrap().top(18).bottom(8))
+                addView(text(domains.joinToString(", "), 15f, palette.label, monospace = true), matchWrap())
+            }
+        }
+
+        val resolverField = inputField(
+            "https://resolver.example/dns-query",
+            initialPolicy.resolverUrl ?: defaultEncryptedPolicy.resolverUrl
+        )
+        val bootstrapField = inputField(
+            "Optional IPv4 or IPv6 addresses",
+            (if (initialPolicy.isEncrypted) initialPolicy.bootstrapAddresses else defaultEncryptedPolicy.bootstrapAddresses).joinToString(", "),
+            minimumLines = 2
+        )
+        val providerValue = text(selectedProvider.ifBlank { "Custom" }, 16f, palette.label, true)
+        val providerRow = horizontalRow(
+            vertical().apply {
+                addView(text("Resolver", 13f, palette.secondaryLabel), matchWrap())
+                addView(providerValue, matchWrap().top(3))
+            },
+            spacer(),
+            icon(WireRouteIcon.CHEVRON_DOWN, palette.secondaryLabel, 20)
+        ).apply {
+            setPadding(dp(14), dp(11), dp(14), dp(11))
+            background = roundedBackground(
+                palette.inset,
+                dp(13).toFloat(),
+                alphaColor(palette.border, 0.82f),
+                dp(1)
+            )
+            isClickable = true
+            contentDescription = "Choose encrypted DNS resolver"
+        }
+        val encryptedPanel = vertical().apply {
+            addView(panelTitle("Encrypted resolution path"), matchWrap().top(22))
+            addView(explanatory("DNS queries use HTTPS with the resolver you select."), matchWrap().top(8))
+            addView(horizontalRow(
+                icon(WireRouteIcon.ROUTE, palette.warningAmber, 21),
+                explanatory("Encrypted DNS replaces this profile’s DNS servers while connected. Internal hostnames may stop resolving.").apply {
+                    setPadding(dp(11), 0, 0, 0)
+                }
+            ).apply {
+                gravity = Gravity.TOP
+                setPadding(dp(13), dp(12), dp(13), dp(12))
+                background = roundedBackground(alphaColor(palette.warningAmber, 0.12f), dp(13).toFloat(), alphaColor(palette.warningAmber, 0.42f), dp(1))
+            }, matchWrap().top(16))
+            addView(providerRow, matchWrap().top(18))
+            addView(panelTitle("Resolver URL"), matchWrap().top(18).bottom(8))
+            addView(resolverField, matchWrap())
+            addView(panelTitle("Bootstrap addresses"), matchWrap().top(18).bottom(8))
+            addView(bootstrapField, matchWrap())
+            addView(explanatory("Optional. Add comma-separated resolver IP addresses when its hostname cannot be reached without DNS."), matchWrap().top(8))
+        }
+
+        val profileSegment = text("Profile DNS", 15f, palette.label, true, Gravity.CENTER)
+        val encryptedSegment = text("Encrypted DNS", 15f, palette.label, true, Gravity.CENTER)
+        fun updateMode() {
+            val profileSelected = selectedMode == WireRouteStore.DNS_MODE_PROFILE
+            profileSegment.background = if (profileSelected) roundedBackground(palette.signalBlue, dp(18).toFloat()) else null
+            encryptedSegment.background = if (!profileSelected) roundedBackground(palette.signalBlue, dp(18).toFloat()) else null
+            profileSegment.setTextColor(if (profileSelected) Color.WHITE else palette.label)
+            encryptedSegment.setTextColor(if (profileSelected) palette.label else Color.WHITE)
+            profilePanel.visibility = if (profileSelected) View.VISIBLE else View.GONE
+            encryptedPanel.visibility = if (profileSelected) View.GONE else View.VISIBLE
+        }
+        profileSegment.setOnClickListener {
+            selectedMode = WireRouteStore.DNS_MODE_PROFILE
+            updateMode()
+        }
+        encryptedSegment.setOnClickListener {
+            selectedMode = WireRouteStore.DNS_MODE_ENCRYPTED
+            updateMode()
+        }
+        val modeSegments = horizontalRow().apply {
+            background = roundedBackground(palette.tertiaryLabel, dp(20).toFloat())
+            setPadding(dp(2), dp(2), dp(2), dp(2))
+            addView(profileSegment, weighted(38, 1f))
+            addView(encryptedSegment, weighted(38, 1f))
+        }
+
+        lateinit var dialog: androidx.appcompat.app.AlertDialog
+        val editProfileButton = horizontalRow(
+            icon(WireRouteIcon.PENCIL, palette.label, 20),
+            text("Edit Profile DNS…", 16f, palette.label, true).apply { setPadding(dp(9), 0, 0, 0) }
+        ).apply {
+            gravity = Gravity.CENTER
+            setPadding(dp(14), dp(13), dp(14), dp(13))
+            background = roundedBackground(palette.raised, dp(13).toFloat())
+            setOnClickListener {
+                dialog.dismiss()
+                editTunnel(tunnel)
+            }
+        }
+        profilePanel.addView(editProfileButton, matchWrap().top(20))
+        if (tunnel.state == Tunnel.State.UP) {
+            val activeNote = explanatory("Changes take effect the next time this profile connects.").apply {
+                setPadding(0, dp(18), 0, 0)
+            }
+            profilePanel.addView(activeNote, matchWrap())
+            encryptedPanel.addView(explanatory("Changes take effect the next time this profile connects."), matchWrap().top(18))
+        }
+
+        val content = vertical().apply {
+            setPadding(dp(6), 0, dp(6), 0)
+            addView(horizontalRow(
+                iconTile(WireRouteIcon.DNS),
+                explanatory("Choose how this profile resolves domain names while connected. Encrypted DNS sends queries to the resolver you select.").apply {
+                    setPadding(dp(14), 0, 0, 0)
+                }
+            ).apply { gravity = Gravity.TOP }, matchWrap())
+            addView(panelTitle("Protection mode"), matchWrap().top(22).bottom(9))
+            addView(modeSegments, matchFixed(42))
+            addView(profilePanel, matchWrap())
+            addView(encryptedPanel, matchWrap())
+        }
+        val scroll = ScrollView(this).apply {
+            isFillViewport = false
+            setPadding(dp(18), dp(6), dp(18), dp(4))
+            addView(content, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        }
+
+        val markCustomWatcher = object : TextWatcher {
+            override fun beforeTextChanged(value: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(value: CharSequence?, start: Int, before: Int, count: Int) = Unit
+            override fun afterTextChanged(value: Editable?) {
+                if (!updatingFields && selectedProvider != "Custom") {
+                    selectedProvider = "Custom"
+                    providerValue.text = selectedProvider
+                }
+            }
+        }
+        resolverField.addTextChangedListener(markCustomWatcher)
+        bootstrapField.addTextChangedListener(markCustomWatcher)
+        providerRow.setOnClickListener {
+            val presetLabels = dnsPresets.map { "${it.name}\n${it.detail}" } + "Custom\nUse your own HTTPS resolver."
+            val selectedIndex = dnsPresets.indexOfFirst { it.name == selectedProvider }.let { if (it >= 0) it else dnsPresets.size }
+            MaterialAlertDialogBuilder(this)
+                .setTitle("Encrypted DNS resolver")
+                .setSingleChoiceItems(presetLabels.toTypedArray(), selectedIndex) { picker, which ->
+                    updatingFields = true
+                    if (which < dnsPresets.size) {
+                        val preset = dnsPresets[which]
+                        selectedProvider = preset.name
+                        resolverField.setText(preset.resolverUrl)
+                        bootstrapField.setText(preset.bootstrapAddresses.joinToString(", "))
+                    } else {
+                        selectedProvider = "Custom"
+                    }
+                    providerValue.text = selectedProvider
+                    updatingFields = false
+                    picker.dismiss()
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
+
+        updateMode()
+        dialog = MaterialAlertDialogBuilder(this)
+            .setTitle("DNS Protection")
+            .setView(scroll)
+            .setNegativeButton("Close", null)
+            .setPositiveButton("Save", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                resolverField.error = null
+                bootstrapField.error = null
+                val policy = runCatching {
+                    if (selectedMode == WireRouteStore.DNS_MODE_PROFILE) {
+                        WireRouteDnsPolicy.profile()
+                    } else {
+                        WireRouteDnsPolicy.encrypted(
+                            selectedProvider,
+                            resolverField.text.toString(),
+                            bootstrapField.text.toString().split(Regex("[,\\n]"))
+                                .map(String::trim)
+                                .filter(String::isNotEmpty)
+                        )
+                    }
+                }.getOrElse { error ->
+                    resolverField.error = error.message ?: "Enter a valid encrypted DNS resolver."
+                    return@setOnClickListener
+                }
+                lifecycleScope.launch {
+                    val kernelBackend = Application.getBackend() is WgQuickBackend
+                    runCatching { withContext(Dispatchers.IO) { store.saveDnsPolicy(tunnel.name, policy) } }
+                        .onSuccess {
+                            dnsPolicies = dnsPolicies + (tunnel.name to policy)
+                            dialog.dismiss()
+                            render()
+                            showMessage(when {
+                                policy.isEncrypted && kernelBackend -> "DNS Protection saved. Close and reopen WireRoute before connecting."
+                                tunnel.state == Tunnel.State.UP -> "DNS Protection saved. Reconnect this profile to apply it."
+                                else -> "DNS Protection saved."
+                            })
+                        }
+                        .onFailure { error -> resolverField.error = error.message ?: "DNS Protection could not be saved." }
+                }
+            }
+        }
+        dialog.show()
     }
 
     private fun showActivityMenu() {
@@ -1295,7 +1611,38 @@ class WireRouteActivity : AppCompatActivity() {
             ?: if (WireRouteRouting.isFullTunnel(config)) WireRouteStore.ROUTING_FULL else WireRouteStore.ROUTING_SPLIT
     }
 
-    private fun dnsDetail(tunnel: ObservableTunnel): String = if (tunnel.config?.`interface`?.dnsServers?.isEmpty() != false) "Not configured" else "Profile DNS"
+    private fun dnsDetail(tunnel: ObservableTunnel): String {
+        val policy = dnsPolicies[tunnel.name] ?: WireRouteDnsPolicy.profile()
+        if (policy.isEncrypted) return policy.provider.ifBlank { "Encrypted DNS" }
+        return if (tunnel.config?.`interface`?.dnsServers?.isEmpty() != false) "Not configured" else "Profile DNS"
+    }
+
+    private fun dnsDescription(tunnel: ObservableTunnel): String {
+        val policy = dnsPolicies[tunnel.name] ?: WireRouteDnsPolicy.profile()
+        return if (policy.isEncrypted) {
+            "Use ${policy.provider.ifBlank { "the selected resolver" }} over HTTPS while this profile is connected."
+        } else {
+            "Use the DNS servers saved in this WireRoute profile."
+        }
+    }
+
+    private fun isDnsServerRoutedThroughVpn(config: Config?, server: InetAddress): Boolean =
+        config?.peers?.any { peer -> peer.allowedIps.any { network -> networkContains(network, server) } } == true
+
+    private fun networkContains(network: InetNetwork, address: InetAddress): Boolean {
+        val networkBytes = network.address.address
+        val addressBytes = address.address
+        if (networkBytes.size != addressBytes.size) return false
+        val completeBytes = network.mask / 8
+        for (index in 0 until completeBytes) {
+            if (networkBytes[index] != addressBytes[index]) return false
+        }
+        val remainingBits = network.mask % 8
+        if (remainingBits == 0) return true
+        val mask = (0xff shl (8 - remainingBits)) and 0xff
+        return (networkBytes[completeBytes].toInt() and mask) ==
+                (addressBytes[completeBytes].toInt() and mask)
+    }
     private fun retentionTitle(days: Int) = if (days == 1) "1 day" else "$days days"
     private fun formatRate(rate: Double): String = if (rate < 1) "Zero KB/s" else Formatter.formatShortFileSize(this, rate.roundToLong()) + "/s"
     private fun formatDuration(milliseconds: Long): String {

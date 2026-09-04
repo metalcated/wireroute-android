@@ -1,6 +1,6 @@
 # WireRoute Privacy Policy
 
-Effective date: September 2, 2026
+Effective date: September 3, 2026
 
 This policy describes the data practices of WireRoute for Android.
 
@@ -14,7 +14,7 @@ WireRoute does not collect, sell, use for secondary purposes, or disclose VPN-de
 
 WireRoute stores information required for features you choose:
 
-- Tunnel profiles, endpoints, addresses, routes, DNS servers, keys, and routing preferences
+- Tunnel profiles, endpoints, addresses, routes, DNS servers, keys, routing preferences, and per-profile DNS Protection settings
 - Local per-profile connection sessions, transfer counters, rates, and last-handshake times
 - Local diagnostic logs
 - Appearance, retention, and selected-profile settings
@@ -32,11 +32,12 @@ The endpoint map does not read the Android device's GPS position. **Locate endpo
 WireRoute makes network connections only to provide app functionality:
 
 - VPN traffic is sent to the endpoint configured in the selected profile.
-- DNS requests may be sent to DNS servers configured in that profile.
+- With **Profile DNS** selected, DNS requests may be sent to DNS servers configured in that profile.
+- With **Encrypted DNS** selected, WireRoute sends DNS queries over HTTPS to the resolver you select. A preset identifies an independently operated resolver; a custom resolver URL and optional bootstrap IP addresses are stored only on the device. Bootstrap addresses are used only to open the HTTPS connection without first resolving the resolver hostname.
 - OpenFreeMap supplies vector tiles, glyphs, and symbols for the map. Ordinary HTTPS requests expose connection metadata and requested map resources to that provider.
 - If you tap **Locate endpoint** and confirm the disclosure, WireRoute sends the selected profile's resolved public endpoint IP address to `ipwho.is` over HTTPS. The response may include an approximate city, region, country, latitude, and longitude. Private and reserved addresses are rejected before lookup. The result remains in memory for the current app session.
 
-Those services and the VPN or RouterOS systems configured by you are operated independently and may process traffic under their own policies. IP geolocation is approximate and must not be treated as a physical address.
+Those DNS, map, geolocation, VPN, and RouterOS services configured or selected by you are operated independently and may process traffic under their own policies. IP geolocation is approximate and must not be treated as a physical address.
 
 ## Exports and support requests
 
