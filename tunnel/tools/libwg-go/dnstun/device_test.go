@@ -8,7 +8,39 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"unsafe"
 )
+
+func TestWrapOwnsBorrowedResolverURL(t *testing.T) {
+	for _, resolverURL := range []string{
+		"https://cloudflare-dns.com/dns-query",
+		"https://cloudflare-dns.com:8443/dns-query",
+	} {
+		t.Run(resolverURL, func(t *testing.T) {
+			// Model the JNI-owned string buffer, which is released after activation.
+			backing := []byte(resolverURL)
+			borrowed := unsafe.String(unsafe.SliceData(backing), len(backing))
+			device, err := Wrap(nil, Config{
+				ResolverURL:        borrowed,
+				BootstrapAddresses: []string{"1.1.1.1"},
+				VirtualAddress:     "10.64.0.53",
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer device.transport.CloseIdleConnections()
+			for i := range backing {
+				backing[i] = 'x'
+			}
+			if got := device.transport.TLSClientConfig.ServerName; got != "cloudflare-dns.com" {
+				t.Fatalf("TLS hostname changed after JNI buffer reuse: %q", got)
+			}
+			if device.resolverURL != resolverURL {
+				t.Fatalf("request URL changed after JNI buffer reuse: %q", device.resolverURL)
+			}
+		})
+	}
+}
 
 func TestResolvePostsDNSMessage(t *testing.T) {
 	query := []byte{

@@ -74,7 +74,10 @@ type Device struct {
 
 // Wrap creates an in-tunnel encrypted DNS endpoint. All bootstrap addresses are literal IPs.
 func Wrap(device tun.Device, config Config) (*Device, error) {
-	resolver, err := url.Parse(config.ResolverURL)
+	// JNI releases its UTF-8 buffers when wgTurnOn returns. url.Parse retains
+	// substrings (including the TLS hostname and port), so own the URL before
+	// asynchronous DNS requests can outlive that call.
+	resolver, err := url.Parse(strings.Clone(config.ResolverURL))
 	if err != nil || !strings.EqualFold(resolver.Scheme, "https") || resolver.Hostname() == "" ||
 		resolver.User != nil || resolver.Fragment != "" {
 		return nil, errors.New("encrypted DNS requires a valid HTTPS resolver URL")
