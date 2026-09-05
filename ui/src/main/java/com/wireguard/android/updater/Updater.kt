@@ -373,11 +373,10 @@ object Updater {
 
         val context = Application.get()
 
-        /* Hello copy and paste artist! Before you go remove these next two lines,
-         * I kindly ask that you actually think about what you're doing more globally,
-         * and instead remove this entire file from your project. Thank you very much! */
-        if (!context.packageName.startsWith("com.wireguard."))
-            throw RuntimeException("Too much code got copy and pasted")
+        // This updater trusts WireGuard's release server and signing key, so only
+        // the official application may use it. WireRoute uses its own release channels.
+        if (BuildConfig.APPLICATION_ID != "com.wireguard.android")
+            return
 
         if (installerIsGooglePlay(context))
             return

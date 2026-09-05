@@ -1,6 +1,7 @@
 @file:Suppress("UnstableApiUsage")
 
 val pkg: String = providers.gradleProperty("wireguardPackageName").get()
+val appId: String = providers.gradleProperty("wirerouteApplicationId").get()
 
 plugins {
     alias(libs.plugins.android.application)
@@ -16,7 +17,7 @@ android {
     }
     namespace = pkg
     defaultConfig {
-        applicationId = pkg
+        applicationId = appId
         minSdk = 24
         versionCode = providers.gradleProperty("wireguardVersionCode").get().toInt()
         versionName = providers.gradleProperty("wireguardVersionName").get()
@@ -26,6 +27,18 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
         isCoreLibraryDesugaringEnabled = true
+    }
+    signingConfigs {
+        val uploadKeystore = rootProject.file(".signing/wireroute-upload.jks")
+        val uploadPassword = rootProject.file(".signing/upload-password")
+        if (uploadKeystore.isFile && uploadPassword.isFile) {
+            create("upload") {
+                storeFile = uploadKeystore
+                storePassword = uploadPassword.readText().trim()
+                keyAlias = "wireroute-upload"
+                keyPassword = storePassword
+            }
+        }
     }
     buildTypes {
         release {
@@ -47,6 +60,7 @@ android {
         create("googleplay") {
             initWith(getByName("release"))
             matchingFallbacks += "release"
+            signingConfig = signingConfigs.findByName("upload")
         }
     }
     androidResources {

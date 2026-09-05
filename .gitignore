@@ -1,4 +1,5 @@
 /.gradle/
+/.signing/
 /.idea/*.xml
 /.idea/caches/
 /.idea/dictionaries/
@@ -10,9 +11,11 @@
 Thumbs.db
 build/
 *.apk
+*.aab
 *.class
 *.dex
 *.iml
 *.jks
+*.keystore
 gradlew.bat
 maint/

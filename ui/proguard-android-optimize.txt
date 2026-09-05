@@ -3,7 +3,7 @@
 -dontobfuscate
 -verbose
 
--keepattributes *Annotation*
+-keepattributes *Annotation*,InnerClasses,EnclosingMethod
 
 -keepclasseswithmembernames class * {
     native <methods>;

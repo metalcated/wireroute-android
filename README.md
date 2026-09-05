@@ -39,6 +39,8 @@ See [Secure RouterOS WireGuard setup](ROUTEROS_SETUP.md) for a guarded example c
 
 ## Building
 
+The Android application ID is `com.metalcated.wireroute`; debug builds use `com.metalcated.wireroute.debug`. The internal source/library namespace remains `com.wireguard.android` for compatibility with the VPN engine. Native tunnel cache paths use the application ID.
+
 Clone the repository with its submodules and build with the checked-in Gradle wrapper:
 
 ```sh
@@ -54,6 +56,8 @@ Run the Android checks with:
 ```sh
 ./gradlew testDebugUnitTest lintDebug
 ```
+
+For a signed Android App Bundle and the first upload to Google Play, follow [Google Play releases](GOOGLE_PLAY_RELEASE.md).
 
 ## Upstream tunnel library
 
