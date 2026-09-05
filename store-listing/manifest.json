@@ -1,0 +1,254 @@
+{
+  "locale": "en-US",
+  "theme": "Nordic Blue",
+  "application_id": "com.metalcated.wireroute",
+  "captured_version": "1.0.20260315 (519)",
+  "capture_base_commit": "a3e387dd",
+  "validation": "passed",
+  "character_counts": {
+    "app-name.txt": {
+      "characters": 9,
+      "limit": 30
+    },
+    "short-description.txt": {
+      "characters": 79,
+      "limit": 80
+    },
+    "full-description.txt": {
+      "characters": 2584,
+      "limit": 4000
+    },
+    "release-notes.txt": {
+      "characters": 445,
+      "limit": 500
+    }
+  },
+  "video": {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 1920,
+        "height": 1080,
+        "pix_fmt": "yuv420p",
+        "r_frame_rate": "30/1"
+      }
+    ],
+    "format": {
+      "duration": "30.000000"
+    }
+  },
+  "assets": [
+    {
+      "file": "README.md",
+      "bytes": 8076,
+      "sha256": "a97b4d7f6fd4f8b169c836ceba5bd7f3f1ceeee28ff04f535a7eaabaa9d8cc4d"
+    },
+    {
+      "file": "source/feature-graphic-prompt.txt",
+      "bytes": 1691,
+      "sha256": "59aa9a7109a88cee58a096fe73dd5b0354c467ddaee5f78e7bc6f1e6b5b8c7c9"
+    },
+    {
+      "file": "en-US/alt-text.txt",
+      "bytes": 1321,
+      "sha256": "beb29feaa1a1b87e1d44a0f90ce78da14abdc56ec82204c3aaf8242ee135431a"
+    },
+    {
+      "file": "en-US/app-name.txt",
+      "bytes": 10,
+      "sha256": "052788df2541e0a71e30daecee6b3350a7302a1e5ae89c598a2b26e29e1a60fc"
+    },
+    {
+      "file": "en-US/full-description.txt",
+      "bytes": 2585,
+      "sha256": "e6a11a9994fe5c495314ab23021dd311012927a3e67fa475b89c10c591b8740d"
+    },
+    {
+      "file": "en-US/graphics/app-icon-512.png",
+      "bytes": 237479,
+      "sha256": "d3fdca62b531aeb39ad7b12d9567387ab142980780e7530f7baa828d8c1ab35f",
+      "width": 512,
+      "height": 512,
+      "color": "RGBA"
+    },
+    {
+      "file": "en-US/graphics/feature-graphic-1024x500.png",
+      "bytes": 532182,
+      "sha256": "717b9d04cf046756cd0777c8ff98c20701d28d2b89c779663adc95e74fae0241",
+      "width": 1024,
+      "height": 500,
+      "color": "RGB"
+    },
+    {
+      "file": "en-US/graphics/phone-screenshots/01-home.png",
+      "bytes": 281749,
+      "sha256": "2a536071809346978667f4bfd7c44f4ade089e651ddc45b78cea01631f2ec20b",
+      "width": 1440,
+      "height": 2560,
+      "color": "RGB"
+    },
+    {
+      "file": "en-US/graphics/phone-screenshots/02-profiles.png",
+      "bytes": 126718,
+      "sha256": "bb30832450fb427542e60822d045d6b2bb3f2161cdcd2f6ce509f5b45727e593",
+      "width": 1440,
+      "height": 2560,
+      "color": "RGB"
+    },
+    {
+      "file": "en-US/graphics/phone-screenshots/03-profile-detail.png",
+      "bytes": 136262,
+      "sha256": "3e9d7ba198c969f86fbee60aa0ec3daa2b9955e9a8ed187efd18c8f0e6829b08",
+      "width": 1440,
+      "height": 2560,
+      "color": "RGB"
+    },
+    {
+      "file": "en-US/graphics/phone-screenshots/04-profile-dns.png",
+      "bytes": 192421,
+      "sha256": "de3632582977dd19d5d060dbcd93515c2414676045c343b50c8b739faebe2417",
+      "width": 1440,
+      "height": 2560,
+      "color": "RGB"
+    },
+    {
+      "file": "en-US/graphics/phone-screenshots/05-encrypted-dns.png",
+      "bytes": 219659,
+      "sha256": "95436aa2ce618f6c685c94dc820a184a9cffd8b6bd44e11f4083e7173f3a491e",
+      "width": 1440,
+      "height": 2560,
+      "color": "RGB"
+    },
+    {
+      "file": "en-US/graphics/phone-screenshots/06-dns-resolvers.png",
+      "bytes": 216830,
+      "sha256": "0e1efd50722eb6812e7f8f765a9087011a7d85b746afb97ec8af170496da35e5",
+      "width": 1440,
+      "height": 2560,
+      "color": "RGB"
+    },
+    {
+      "file": "en-US/graphics/phone-screenshots/07-activity.png",
+      "bytes": 129387,
+      "sha256": "6b346960be84a228a1424dbdb516c234406831e4fe8e769cd711f8b1604ed4b2",
+      "width": 1440,
+      "height": 2560,
+      "color": "RGB"
+    },
+    {
+      "file": "en-US/graphics/phone-screenshots/08-settings.png",
+      "bytes": 159999,
+      "sha256": "a2f5a260eb209378e54d03bfe48e870281ee89603cd8c349b370f5313fef81eb",
+      "width": 1440,
+      "height": 2560,
+      "color": "RGB"
+    },
+    {
+      "file": "en-US/graphics/tablet-10-inch/01-home.png",
+      "bytes": 263932,
+      "sha256": "da90d606b4472c72b1607e2e5eb13ff80fdaae835a0af5c6d50645885da782fa",
+      "width": 1800,
+      "height": 3200,
+      "color": "RGB"
+    },
+    {
+      "file": "en-US/graphics/tablet-10-inch/02-profiles.png",
+      "bytes": 109178,
+      "sha256": "c1adcdfcb529b8e25fd660599b5c93791d568f43da7a8a7282d2fb60bb018aad",
+      "width": 1800,
+      "height": 3200,
+      "color": "RGB"
+    },
+    {
+      "file": "en-US/graphics/tablet-10-inch/03-profile-detail.png",
+      "bytes": 132370,
+      "sha256": "fc8785f2af0c28dd6c98fe70879ebf6db07d9fbf338b944c0f5dfdb2f12674da",
+      "width": 1800,
+      "height": 3200,
+      "color": "RGB"
+    },
+    {
+      "file": "en-US/graphics/tablet-10-inch/04-encrypted-dns.png",
+      "bytes": 208646,
+      "sha256": "984bf7d23f80072ccc7d57fe8bcbafb216c6cdfef13099587d23cffa809e69d1",
+      "width": 1800,
+      "height": 3200,
+      "color": "RGB"
+    },
+    {
+      "file": "en-US/graphics/tablet-10-inch/05-settings.png",
+      "bytes": 187252,
+      "sha256": "f69b20d96c0cd967656abc5c1777c9dc95052fedc043c83944b29c3807093e99",
+      "width": 1800,
+      "height": 3200,
+      "color": "RGB"
+    },
+    {
+      "file": "en-US/graphics/tablet-7-inch/01-home.png",
+      "bytes": 233943,
+      "sha256": "7f79c905ea56a3aca3b3033f4521b3f79a2280e95b4e2d68721932dbb7b20fef",
+      "width": 1440,
+      "height": 2560,
+      "color": "RGB"
+    },
+    {
+      "file": "en-US/graphics/tablet-7-inch/02-profiles.png",
+      "bytes": 100446,
+      "sha256": "ef3fa0837e8f01b6db84be7c66142a18c08862dbe27ddb6dbda06852cafcbe8b",
+      "width": 1440,
+      "height": 2560,
+      "color": "RGB"
+    },
+    {
+      "file": "en-US/graphics/tablet-7-inch/03-profile-detail.png",
+      "bytes": 122732,
+      "sha256": "41d867f91e2d1a5dd409359216fc3e1fc11fe7620d39876f61e3fe089911b201",
+      "width": 1440,
+      "height": 2560,
+      "color": "RGB"
+    },
+    {
+      "file": "en-US/graphics/tablet-7-inch/04-encrypted-dns.png",
+      "bytes": 157437,
+      "sha256": "36bd559f0943094686302d5a26c15665c7d4f03ddec3be6ee76ce766a04d76a6",
+      "width": 1440,
+      "height": 2560,
+      "color": "RGB"
+    },
+    {
+      "file": "en-US/graphics/tablet-7-inch/05-settings.png",
+      "bytes": 151598,
+      "sha256": "230528a0e7b716ea79b8215fa972f8a9fc5d8931d035ce8f52dd062a1ed399c8",
+      "width": 1440,
+      "height": 2560,
+      "color": "RGB"
+    },
+    {
+      "file": "en-US/release-notes.txt",
+      "bytes": 458,
+      "sha256": "4e4a5fc37133858f2ded95a128dc42623c11fee228b3491d16af7c9072f039e2"
+    },
+    {
+      "file": "en-US/short-description.txt",
+      "bytes": 80,
+      "sha256": "9423d98a986a840edaa22fbff5646dda31841a982dcd7335b08b7804e4c144b7"
+    },
+    {
+      "file": "en-US/video/wireroute-preview-1080p.mp4",
+      "bytes": 687487,
+      "sha256": "e1a498858c31021f892fe39871dac8a25a88931b1933d33996daa2049e6b8ffb"
+    },
+    {
+      "file": "en-US/video/youtube-description.txt",
+      "bytes": 736,
+      "sha256": "ba47cfc0f90701cef898c8baf2bb6cc126fb20145564605d416bfd59ade5dec3"
+    },
+    {
+      "file": "en-US/video/youtube-title.txt",
+      "bytes": 54,
+      "sha256": "0a56c47ea0c3bda11d4d69ec25a2f74ea7e79131c2b932cd73472583d142d4d4"
+    }
+  ]
+}

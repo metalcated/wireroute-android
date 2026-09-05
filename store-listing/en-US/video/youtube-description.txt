@@ -1,0 +1,12 @@
+Meet WireRoute, an open-source WireGuard-compatible VPN client for Android.
+
+Manage your profiles, choose split or full tunnel routing, configure profile DNS or encrypted DNS-over-HTTPS, and review local connection activity in the Nordic Blue interface.
+
+Works with your own compatible endpoint, including WireGuard on MikroTik RouterOS 7. WireRoute does not provide VPN servers or a VPN subscription.
+
+This 30-second preview uses actual Android screenshots with non-working example profiles. It is an interface tour, not a connection or performance demonstration.
+
+Source code and support:
+https://github.com/metalcated/wireroute-android
+
+WireRoute is independently maintained and is not an official WireGuard or MikroTik application.

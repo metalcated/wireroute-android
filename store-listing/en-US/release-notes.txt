@@ -1,0 +1,10 @@
+Initial release of WireRoute for Android.
+
+• Create, import, scan, edit, and export VPN profiles.
+• Choose split or full tunnel routing per profile.
+• Use profile DNS or encrypted DNS-over-HTTPS.
+• Review live traffic and local connection history.
+• Explore public endpoints with an optional map lookup.
+• Choose Nordic Blue or Android System colors.
+
+Requires your own WireGuard-compatible endpoint, including supported RouterOS configurations.

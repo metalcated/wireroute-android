@@ -1,0 +1,30 @@
+Your networks. Your routes.
+
+WireRoute is an open-source Android VPN client for connecting to your own WireGuard-compatible endpoints. Manage home, office, and travel profiles in a clear Nordic Blue interface, with routing and DNS controls for each connection.
+
+BRING YOUR OWN VPN
+Import a standard WireGuard configuration, scan a configuration QR code, or create a profile yourself. WireRoute works with compatible endpoints, including WireGuard on MikroTik RouterOS 7. You need a working endpoint and its connection details; WireRoute does not provide VPN servers or a VPN subscription.
+
+CHOOSE YOUR ROUTING
+Use Split Tunnel to send the profile's saved routes through the VPN, or Full Tunnel to route internet traffic through your endpoint. Manage addresses, keys, endpoints, allowed IPs, and other profile settings in one place.
+
+CHOOSE YOUR DNS
+Keep the DNS servers from your profile or select encrypted DNS-over-HTTPS for that profile. Built-in options include Cloudflare, Cloudflare Security, Cloudflare Family, AdGuard DNS, AdGuard Family, Quad9 Secure, and Google Public DNS. You can also enter a custom resolver URL and bootstrap addresses.
+
+Encrypted DNS uses the resolver you select and may affect access to internal domain names. Filtering depends on your chosen provider; WireRoute does not operate those resolvers.
+
+SEE YOUR CONNECTION ACTIVITY
+Review live upload and download rates, session totals, handshake information, and recent connections. Activity history stays on your device, with configurable retention. View diagnostic logs and export your profiles when needed.
+
+EXPLORE YOUR ENDPOINT
+Optionally locate a public VPN endpoint on a map. After you confirm, WireRoute sends the endpoint's public IP address to ipwho.is for an approximate location. OpenFreeMap supplies the map. This feature does not use your phone's GPS location, and private or local endpoints cannot be located on a public map.
+
+MAKE IT YOURS
+Choose Nordic Blue or follow Android System colors. Keep multiple profiles ready and connect or disconnect from the Home or Profiles screen.
+
+WireRoute has no advertising or analytics SDKs and does not require a WireRoute account. Your VPN endpoint, selected DNS resolver, and optional map services have their own policies.
+
+WireRoute is independently maintained and based on the open-source WireGuard Android project. It is not an official WireGuard or MikroTik application. RouterOS configuration remains under your control; this Android app does not administer your router.
+
+Source code and support:
+https://github.com/metalcated/wireroute-android

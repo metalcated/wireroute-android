@@ -1,0 +1,29 @@
+App icon
+Blue and cyan WireRoute routing symbol with a white shield on a dark navy background.
+
+Feature graphic
+WireRoute. Your networks. Your routes. Blue routing paths connect bright endpoint nodes on a navy background.
+
+01-home.png
+WireRoute Home in Nordic Blue, with a world map, sample endpoint, split routing, DNS summary, and Connect button.
+
+02-profiles.png
+Three inactive example VPN profiles with split or full tunnel badges and individual connection controls.
+
+03-profile-detail.png
+An example profile showing connection state, Activity, split and full tunnel controls, and DNS Protection.
+
+04-profile-dns.png
+Profile DNS mode showing two configured example DNS servers, Via VPN indicators, and an Edit Profile DNS button.
+
+05-encrypted-dns.png / tablet 04-encrypted-dns.png
+Encrypted DNS settings with a Cloudflare resolver, HTTPS URL, bootstrap addresses, and an internal-domain warning.
+
+06-dns-resolvers.png
+Encrypted DNS provider choices including Cloudflare, AdGuard, Quad9, Google Public DNS, and Custom.
+
+07-activity.png
+Inactive profile activity with a traffic chart, download and upload cards, session details, and empty connection history.
+
+08-settings.png / tablet 05-settings.png
+WireRoute Settings with Nordic Blue appearance, local activity retention, profile export, and diagnostic log access.
