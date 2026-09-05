@@ -154,6 +154,15 @@ WireRoute's **Locate endpoint** feature needs a public `Endpoint` in the selecte
 
 The map cannot locate private, local, reserved, or documentation-only addresses. DNS names must resolve to a public IP address. IP geolocation is approximate and must not be treated as a physical address.
 
+## Rule-order checklist
+
+Before applying changes, review the existing policy and keep a working management connection or local recovery console available. Use RouterOS Safe Mode for interactive changes where appropriate.
+
+- In the input chain, keep established/related handling and invalid-packet drops intact. Place the narrow WireGuard UDP allowance before the applicable WAN drop.
+- In the forward chain, place the intended VPN destination allowances before the VPN-client drop and any broader drop that would otherwise match first.
+- Check for earlier broad accept rules that would bypass the intended restrictions. Do not add the VPN interface to a trusted LAN list merely to make connectivity work.
+- Review IPv4 and IPv6 separately. IPv4 firewall and NAT rules do not establish an IPv6 policy.
+
 ## Validation
 
 After applying reviewed changes:
@@ -164,3 +173,19 @@ After applying reviewed changes:
 4. In Split Tunnel mode, verify only the intended protected destinations use the VPN.
 5. If Full Tunnel is allowed, verify the public egress address, DNS behavior, and IPv6 policy.
 6. Confirm RouterOS management services remain unreachable from untrusted networks.
+
+Inspect detailed configuration output privately; it can contain credentials or private keys. Share sanitized diagnostics only.
+
+## Roll back safely
+
+Record the original configuration and the exact rules you change before applying anything. If validation fails, use the retained management connection or recovery console to disable only the newly added, identified rules and restore the specific values you changed. Recheck rule order and management access afterward. Do not reset the router or remove broad groups of existing firewall rules to troubleshoot a VPN connection.
+
+Disconnect the Android profile while correcting the router configuration. Removing an Android profile does not undo router-side changes, and changing Split/Full Tunnel does not change the router firewall.
+
+## Official references
+
+- [MikroTik WireGuard documentation](https://help.mikrotik.com/docs/spaces/ROS/pages/69664792/WireGuard)
+- [MikroTik advanced firewall guide](https://help.mikrotik.com/docs/spaces/ROS/pages/328513/Building+Advanced+Firewall)
+- [MikroTik configuration management and Safe Mode](https://help.mikrotik.com/docs/spaces/ROS/pages/328155/Configuration+Management)
+
+Return to the [Android documentation index](README.md) or [support guide](SUPPORT.md).

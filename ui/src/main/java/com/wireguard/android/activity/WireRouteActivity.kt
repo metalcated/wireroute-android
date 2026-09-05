@@ -739,7 +739,7 @@ class WireRouteActivity : AppCompatActivity() {
             Triple("Privacy", "See what WireRoute stores and never uploads.", "PRIVACY.md"),
             Triple("Security", "Review security practices and report vulnerabilities.", "SECURITY.md"),
             Triple("Legal and open-source notices", "Licenses, notices, and project terms.", "LEGAL.md"),
-            Triple("RouterOS setup", "Configure secure RouterOS access and peer management.", "ROUTEROS_SETUP.md")
+            Triple("RouterOS setup", "Set up a compatible VPN endpoint on your router.", "ROUTEROS_SETUP.md")
         )
         documents.forEachIndexed { index, (title, detail, path) ->
             if (index > 0) help.addView(insetDivider())

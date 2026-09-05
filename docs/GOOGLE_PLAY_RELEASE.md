@@ -46,6 +46,6 @@ For later releases, increase `wireguardVersionCode` before building and uploadin
 
 ## Store listing assets
 
-The [Nordic Blue listing kit](store-listing/README.md) contains the English listing copy, Play icon, feature graphic, real Android phone/tablet screenshots, and an optional preview video. Its guide maps every file to the matching Console field. The non-working screenshot fixtures are not functional app-review credentials.
+The [Nordic Blue listing kit](../store-listing/README.md) contains the English listing copy, Play icon, feature graphic, real Android phone/tablet screenshots, and an optional preview video. Its guide maps every file to the matching Console field. The non-working screenshot fixtures are not functional app-review credentials.
 
 Official guidance: [Android app signing](https://developer.android.com/studio/publish/app-signing), [prepare and roll out a release](https://support.google.com/googleplay/android-developer/answer/9859348), and [internal testing](https://support.google.com/googleplay/android-developer/answer/9845334).

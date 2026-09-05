@@ -26,16 +26,20 @@ After confirmation, WireRoute sends only the resolved public endpoint IP address
 
 WireRoute works with standard WireGuard profiles generated for RouterOS 7. Android WireRoute does not connect to the RouterOS REST API or modify router configuration; RouterOS remains under the administrator's control.
 
-See [Secure RouterOS WireGuard setup](ROUTEROS_SETUP.md) for a guarded example covering the interface, client peer, firewall, NAT, and Android profile. Review an existing router before making changes because interface names, subnets, firewall order, and NAT policy are deployment-specific.
+See [Secure RouterOS WireGuard setup](docs/ROUTEROS_SETUP.md) for a guarded example covering the interface, client peer, firewall, NAT, and Android profile. Review an existing router before making changes because interface names, subnets, firewall order, and NAT policy are deployment-specific.
 
-## Support, privacy, and project policies
+## Documentation
 
-- [Secure RouterOS WireGuard setup](ROUTEROS_SETUP.md)
-- [Support and contact](SUPPORT.md)
-- [Privacy policy](PRIVACY.md)
-- [Security reporting](SECURITY.md)
-- [Legal and open-source notices](LEGAL.md)
-- [Apache License 2.0](COPYING)
+- [Android documentation and getting started](docs/README.md)
+- [Profile import, QR codes, and Apple configuration compatibility](docs/MOBILECONFIG.md)
+- [Secure RouterOS WireGuard setup](docs/ROUTEROS_SETUP.md)
+- [Support and contact](docs/SUPPORT.md)
+- [Privacy policy](docs/PRIVACY.md)
+- [Security reporting](docs/SECURITY.md)
+- [Legal and open-source notices](docs/LEGAL.md)
+- [Apache License 2.0](docs/COPYING)
+- [Google Play signing and releases](docs/GOOGLE_PLAY_RELEASE.md)
+- [Google Play listing assets and upload guide](store-listing/README.md)
 
 ## Building
 
@@ -57,7 +61,7 @@ Run the Android checks with:
 ./gradlew testDebugUnitTest lintDebug
 ```
 
-For a signed Android App Bundle and the first upload to Google Play, follow [Google Play releases](GOOGLE_PLAY_RELEASE.md).
+For a signed Android App Bundle and the first upload to Google Play, follow [Google Play releases](docs/GOOGLE_PLAY_RELEASE.md).
 
 ## Upstream tunnel library
 
@@ -71,4 +75,4 @@ See the upstream [Maven artifact](https://search.maven.org/artifact/com.wireguar
 
 ## License
 
-This repository is licensed under the [Apache License 2.0](COPYING). WireRoute-specific changes and inherited upstream files retain their applicable copyright and license notices.
+This repository is licensed under the [Apache License 2.0](docs/COPYING). WireRoute-specific changes and inherited upstream files retain their applicable copyright and license notices.

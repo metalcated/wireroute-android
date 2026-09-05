@@ -4,6 +4,7 @@ WireRoute is a free, open-source WireGuard client for Android. It does not provi
 
 ## Get help
 
+- Start with the [Android documentation index](README.md) and [profile import guide](MOBILECONFIG.md).
 - Follow the [secure RouterOS WireGuard setup guide](ROUTEROS_SETUP.md) for a guarded example.
 - Search the [existing issues](https://github.com/metalcated/wireroute-android/issues) for a known problem.
 - [Open a support request](https://github.com/metalcated/wireroute-android/issues/new) for app issues, feedback, or feature requests.
