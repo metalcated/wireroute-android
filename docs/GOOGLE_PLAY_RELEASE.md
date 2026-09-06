@@ -56,6 +56,12 @@ Version 522 removes WireRoute's runtime status/navigation bar color setters. The
 
 The `SimpleActor$offer$2` location reported for version 520 includes WireRoute's startup coroutine merged by R8; it is not evidence of a DataStore defect. Validate both appearance modes and gesture/three-button navigation after dependency updates. Compatibility libraries may retain legacy API references for older devices; local build success does not guarantee Play's static warning disappears. Upload the new bundle and review that release's report, not the historical version 520 report.
 
+## Location hardware compatibility
+
+Version 523 explicitly marks `android.hardware.location` optional, alongside the GPS and network-location subfeatures. Without the parent declaration, the On-Demand location permissions imply a required location feature and can exclude devices from Google Play. This changes install eligibility only: precise/background permission prompts and On-Demand behavior remain unchanged, as do minimum API 24 and target API 36.
+
+Before uploading, inspect the generated Google Play manifest and APK feature list (`aapt2 dump badging`). All three location features must appear as `uses-feature-not-required`, with no required or implied-required location feature. After uploading, check Play Console's device comparison to confirm the affected models are supported again; local checks cannot confirm Play's device-catalog result.
+
 ## Store listing assets
 
 The [Nordic Blue listing kit](../store-listing/README.md) contains the English listing copy, Play icon, feature graphic, real Android phone/tablet screenshots, and an optional preview video. Its guide maps every file to the matching Console field. The non-working screenshot fixtures are not functional app-review credentials.
