@@ -295,8 +295,9 @@ class WireRouteActivity : AppCompatActivity() {
             appearanceMode = settings.appearance
             activityRetentionDays = settings.retentionDays
             palette = WireRoutePalette.resolve(this@WireRouteActivity, appearanceMode)
-            window.statusBarColor = palette.background
-            window.navigationBarColor = palette.background
+            // The inset-aware root paints behind transparent system bars on Android 15+.
+            // Legacy devices retain their theme-provided bar colors; do not use deprecated setters.
+            if (Build.VERSION.SDK_INT >= 35) window.isNavigationBarContrastEnforced = false
             val useLightSystemBars = appearanceMode == WireRouteStore.APPEARANCE_SYSTEM &&
                 resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK != Configuration.UI_MODE_NIGHT_YES
             WindowCompat.getInsetsController(window, window.decorView).apply {

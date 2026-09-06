@@ -50,6 +50,12 @@ Version 521 adds optional On-Demand networking and Wi-Fi-name rules. Before publ
 
 Review Data Safety against the actual local-only Wi-Fi-name behavior; do not copy declarations from the earlier location-free build. Google Play review/approval is separate from a successful local build. See [On-Demand setup and limitations](ON_DEMAND.md).
 
+## Android 15 edge-to-edge compatibility
+
+Version 522 removes WireRoute's runtime status/navigation bar color setters. The main screen's inset-aware root supplies the background behind system bars, with icon contrast controlled through `WindowInsetsControllerCompat`. Older Android versions retain theme-provided bar colors. Material Components is updated to 1.14.0, whose bottom-sheet color setters are guarded below API 35. See the [Android migration guidance](https://developer.android.com/develop/ui/views/layout/edge-to-edge) and [Material release notes](https://github.com/material-components/material-components-android/releases/tag/1.14.0).
+
+The `SimpleActor$offer$2` location reported for version 520 includes WireRoute's startup coroutine merged by R8; it is not evidence of a DataStore defect. Validate both appearance modes and gesture/three-button navigation after dependency updates. Compatibility libraries may retain legacy API references for older devices; local build success does not guarantee Play's static warning disappears. Upload the new bundle and review that release's report, not the historical version 520 report.
+
 ## Store listing assets
 
 The [Nordic Blue listing kit](../store-listing/README.md) contains the English listing copy, Play icon, feature graphic, real Android phone/tablet screenshots, and an optional preview video. Its guide maps every file to the matching Console field. The non-working screenshot fixtures are not functional app-review credentials.
