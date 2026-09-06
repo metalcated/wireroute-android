@@ -20,6 +20,7 @@ import com.wireguard.android.BR
 import com.wireguard.android.R
 import com.wireguard.android.backend.Statistics
 import com.wireguard.android.backend.Tunnel
+import com.wireguard.android.wireroute.WireRouteOnDemandService
 import com.wireguard.android.configStore.ConfigStore
 import com.wireguard.android.databinding.ObservableSortedKeyedArrayList
 import com.wireguard.android.util.ErrorMessages
@@ -34,6 +35,8 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Maintains and mediates changes to the set of available WireGuard tunnels,
@@ -43,6 +46,7 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
     private val context: Context = get()
     private val tunnelMap: ObservableSortedKeyedArrayList<String, ObservableTunnel> = ObservableSortedKeyedArrayList(TunnelComparator)
     private var haveLoaded = false
+    private val stateChangeMutex = Mutex()
 
     private fun addToList(name: String, config: Config?, state: Tunnel.State): ObservableTunnel {
         val tunnel = ObservableTunnel(this, name, config, state)
@@ -135,14 +139,16 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
         }
     }
 
-    suspend fun restoreState(force: Boolean) {
+    suspend fun restoreState(force: Boolean, respectOnDemand: Boolean = true) {
         if (!haveLoaded || (!force && !UserKnobs.restoreOnBoot.first()))
             return
         val previouslyRunning = UserKnobs.runningTunnels.first()
         if (previouslyRunning.isEmpty()) return
         withContext(Dispatchers.IO) {
             try {
-                tunnelMap.filter { previouslyRunning.contains(it.name) }.map { async(Dispatchers.IO + SupervisorJob()) { setTunnelState(it, Tunnel.State.UP) } }
+                tunnelMap.filter { previouslyRunning.contains(it.name) &&
+                    (!respectOnDemand || !getWireRouteStore().onDemandPolicy(it.name).enabled)
+                }.map { async(Dispatchers.IO + SupervisorJob()) { setTunnelState(it, Tunnel.State.UP) } }
                     .awaitAll()
             } catch (e: Throwable) {
                 Log.e(TAG, Log.getStackTraceString(e))
@@ -198,21 +204,32 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
         newName!!
     }
 
-    suspend fun setTunnelState(tunnel: ObservableTunnel, state: Tunnel.State): Tunnel.State = withContext(Dispatchers.Main.immediate) {
-        var newState = tunnel.state
-        var throwable: Throwable? = null
-        try {
-            newState = withContext(Dispatchers.IO) { getBackend().setState(tunnel, state, tunnel.getConfigAsync()) }
-            if (newState == Tunnel.State.UP)
-                lastUsedTunnel = tunnel
-        } catch (e: Throwable) {
-            throwable = e
+    suspend fun setTunnelState(tunnel: ObservableTunnel, state: Tunnel.State, automatic: Boolean = false): Tunnel.State = withContext(Dispatchers.Main.immediate) {
+        stateChangeMutex.withLock {
+            if (automatic && (getWireRouteStore().enabledOnDemandProfile() != tunnel.name ||
+                    getWireRouteStore().pausedOnDemandNetwork(tunnel.name) == WireRouteOnDemandService.networkIdentity ||
+                    (state == Tunnel.State.UP && tunnelMap.any { it != tunnel && it.state == Tunnel.State.UP }))) {
+                return@withLock tunnel.state
+            }
+            var newState = tunnel.state
+            var throwable: Throwable? = null
+            try {
+                newState = withContext(Dispatchers.IO) { getBackend().setState(tunnel, state, tunnel.getConfigAsync()) }
+                if (newState == Tunnel.State.UP)
+                    lastUsedTunnel = tunnel
+            } catch (e: Throwable) {
+                throwable = e
+            }
+            tunnel.onStateChanged(newState)
+            saveState()
+            if (throwable != null)
+                throw throwable
+            if (!automatic) withContext(Dispatchers.IO) {
+                getWireRouteStore().pauseOnDemand(tunnel.name,
+                    if (newState == Tunnel.State.DOWN) WireRouteOnDemandService.networkIdentity else null)
+            }
+            newState
         }
-        tunnel.onStateChanged(newState)
-        saveState()
-        if (throwable != null)
-            throw throwable
-        newState
     }
 
     class IntentReceiver : BroadcastReceiver() {

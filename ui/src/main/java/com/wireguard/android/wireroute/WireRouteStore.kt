@@ -89,6 +89,7 @@ class WireRouteStore(context: Context) : SQLiteOpenHelper(
     DATABASE_VERSION
 ) {
     override fun onCreate(database: SQLiteDatabase) {
+        createOnDemandTable(database)
         database.execSQL("CREATE TABLE settings (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)")
         database.execSQL(
             """CREATE TABLE profile_metadata (
@@ -135,10 +136,74 @@ class WireRouteStore(context: Context) : SQLiteOpenHelper(
     }
 
     override fun onUpgrade(database: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 3) createOnDemandTable(database)
         if (oldVersion < 2) {
             database.execSQL("ALTER TABLE profile_metadata ADD COLUMN dns_url TEXT")
             database.execSQL("ALTER TABLE profile_metadata ADD COLUMN dns_bootstrap TEXT")
         }
+    }
+
+    private fun createOnDemandTable(database: SQLiteDatabase) {
+        database.execSQL("""CREATE TABLE on_demand (
+            profile_name TEXT PRIMARY KEY NOT NULL,
+            enabled INTEGER NOT NULL DEFAULT 0,
+            wifi INTEGER NOT NULL DEFAULT 1,
+            cellular INTEGER NOT NULL DEFAULT 1,
+            wifi_rule TEXT NOT NULL DEFAULT 'ANY',
+            ssids TEXT NOT NULL DEFAULT '[]',
+            paused_network TEXT
+        )""")
+    }
+
+    @Synchronized
+    fun onDemandPolicy(profileName: String): WireRouteOnDemandPolicy {
+        readableDatabase.query("on_demand", null, "profile_name = ?", arrayOf(profileName), null, null, null).use { row ->
+            if (!row.moveToFirst()) return WireRouteOnDemandPolicy()
+            return WireRouteOnDemandPolicy(
+                enabled = row.getInt(row.getColumnIndexOrThrow("enabled")) != 0,
+                wifi = row.getInt(row.getColumnIndexOrThrow("wifi")) != 0,
+                cellular = row.getInt(row.getColumnIndexOrThrow("cellular")) != 0,
+                wifiRule = OnDemandWifiRule.valueOf(row.getString(row.getColumnIndexOrThrow("wifi_rule"))),
+                ssids = decodeStringList(row.getString(row.getColumnIndexOrThrow("ssids")))
+            )
+        }
+    }
+
+    @Synchronized
+    fun enabledOnDemandProfile(): String? = readableDatabase.query(
+        "on_demand", arrayOf("profile_name"), "enabled = 1", null, null, null, "profile_name", "1"
+    ).use { if (it.moveToFirst()) it.getString(0) else null }
+
+    @Synchronized
+    fun saveOnDemandPolicy(profileName: String, policy: WireRouteOnDemandPolicy) {
+        policy.validate()
+        val database = writableDatabase
+        database.beginTransaction()
+        try {
+            // Android has one active VPN: retain other profiles' rules, but disarm them.
+            if (policy.enabled) database.execSQL("UPDATE on_demand SET enabled = 0")
+            database.insertWithOnConflict("on_demand", null, ContentValues().apply {
+                put("profile_name", profileName)
+                put("enabled", policy.enabled)
+                put("wifi", policy.wifi)
+                put("cellular", policy.cellular)
+                put("wifi_rule", policy.wifiRule.name)
+                put("ssids", JSONArray(policy.ssids).toString())
+                putNull("paused_network")
+            }, SQLiteDatabase.CONFLICT_REPLACE)
+            database.setTransactionSuccessful()
+        } finally { database.endTransaction() }
+    }
+
+    @Synchronized
+    fun pausedOnDemandNetwork(profileName: String): String? = readableDatabase.query(
+        "on_demand", arrayOf("paused_network"), "profile_name = ?", arrayOf(profileName), null, null, null
+    ).use { if (it.moveToFirst() && !it.isNull(0)) it.getString(0) else null }
+
+    @Synchronized
+    fun pauseOnDemand(profileName: String, network: String?) {
+        writableDatabase.update("on_demand", ContentValues().apply { put("paused_network", network) },
+            "profile_name = ?", arrayOf(profileName))
     }
 
     @Synchronized
@@ -273,12 +338,14 @@ class WireRouteStore(context: Context) : SQLiteOpenHelper(
         val values = ContentValues().apply { put("profile_name", newName) }
         writableDatabase.update("profile_metadata", values, "profile_name = ?", arrayOf(oldName))
         writableDatabase.update("activity_sessions", values, "profile_name = ?", arrayOf(oldName))
+        writableDatabase.update("on_demand", values, "profile_name = ?", arrayOf(oldName))
         if (selectedProfile() == oldName) setSelectedProfile(newName)
     }
 
     @Synchronized
     fun removeProfile(profileName: String) {
         writableDatabase.delete("profile_metadata", "profile_name = ?", arrayOf(profileName))
+        writableDatabase.delete("on_demand", "profile_name = ?", arrayOf(profileName))
         if (selectedProfile() == profileName) setSelectedProfile(null)
     }
 
@@ -434,7 +501,7 @@ class WireRouteStore(context: Context) : SQLiteOpenHelper(
     }
 
     companion object {
-        private const val DATABASE_VERSION = 2
+        private const val DATABASE_VERSION = 3
         private const val DAY_MILLIS = 24L * 60 * 60 * 1000
         const val APPEARANCE_NORDIC = "blueNordic"
         const val APPEARANCE_SYSTEM = "system"

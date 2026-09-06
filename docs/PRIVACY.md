@@ -1,6 +1,6 @@
 # WireRoute Privacy Policy
 
-Effective date: September 3, 2026
+Effective date: September 6, 2026
 
 This policy describes the data practices of WireRoute for Android.
 
@@ -18,6 +18,7 @@ WireRoute stores information required for features you choose:
 - Local per-profile connection sessions, transfer counters, rates, and last-handshake times
 - Local diagnostic logs
 - Appearance, retention, and selected-profile settings
+- Optional On-Demand rules, saved Wi-Fi names, and the network identifier used to pause after a manual disconnect
 
 Activity history does not contain packet contents. Retention can be set to 1, 7, or 30 days. Diagnostic logs can contain interface names, endpoint hostnames or addresses, public keys, handshake state, and error details.
 
@@ -26,6 +27,10 @@ Activity history does not contain packet contents. Retention can be set to 1, 7,
 Camera access is used only when you choose to scan a WireGuard configuration QR code. The QR code is processed on the device and is not uploaded to the WireRoute project.
 
 The endpoint map does not read the Android device's GPS position. **Locate endpoint** operates on the public endpoint configured in the selected profile, so enabling Android location access does not affect it.
+
+Optional **On-Demand** rules can identify the connected Wi-Fi network by name (SSID). Android classifies Wi-Fi names as location-sensitive data. WireRoute requests precise and background location access only when you choose named-network rules, with an in-app explanation before requesting access. Background access lets these rules work while the app is not visible. WireRoute does not request GPS coordinates or upload Wi-Fi names. Names and rules remain in the device-local database. Basic Wi-Fi/cellular rules do not require location access.
+
+On-Demand uses a foreground service and an ongoing notification to monitor network changes. Disabling On-Demand stops that monitoring without disconnecting an existing VPN. You may revoke location or notification permissions in Android settings; missing Wi-Fi name access pauses named-network decisions rather than assuming a trusted-network match.
 
 ## Network connections
 

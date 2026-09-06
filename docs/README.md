@@ -8,6 +8,7 @@ This is the Android documentation index. The Apple project shares the product co
 
 - [Project overview and build commands](../README.md)
 - [Import profiles, scan QR codes, and understand Apple configuration formats](MOBILECONFIG.md)
+- [On-Demand VPN, Wi-Fi/cellular rules, and trusted networks](ON_DEMAND.md)
 - [Secure RouterOS setup, firewall ordering, validation, and rollback](ROUTEROS_SETUP.md)
 - [Support and troubleshooting](SUPPORT.md)
 - [Privacy policy](PRIVACY.md)

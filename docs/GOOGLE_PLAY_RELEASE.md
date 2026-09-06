@@ -44,6 +44,12 @@ The former `com.wireguard.android.debug` development build and the new Play appl
 
 For later releases, increase `wireguardVersionCode` before building and uploading another bundle. Version codes already uploaded to Play cannot be reused.
 
+## On-Demand release declarations
+
+Version 521 adds optional On-Demand networking and Wi-Fi-name rules. Before publishing it, review Play Console's foreground-service and background-location declarations and the updated [privacy policy](PRIVACY.md). The foreground monitor uses the `systemExempted` VPN-app category; named-network rules request precise/background location to read SSIDs while the app is closed. Basic Wi-Fi/cellular rules do not require location. Prepare a demonstration of the optional permission disclosure and network-rule behavior if Play requests one. Do not describe location access as an endpoint-map requirement.
+
+Review Data Safety against the actual local-only Wi-Fi-name behavior; do not copy declarations from the earlier location-free build. Google Play review/approval is separate from a successful local build. See [On-Demand setup and limitations](ON_DEMAND.md).
+
 ## Store listing assets
 
 The [Nordic Blue listing kit](../store-listing/README.md) contains the English listing copy, Play icon, feature graphic, real Android phone/tablet screenshots, and an optional preview video. Its guide maps every file to the matching Console field. The non-working screenshot fixtures are not functional app-review credentials.

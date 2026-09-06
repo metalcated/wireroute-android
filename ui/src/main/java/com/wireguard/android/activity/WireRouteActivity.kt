@@ -2,6 +2,15 @@
 package com.wireguard.android.activity
 
 import android.content.Intent
+import android.Manifest
+import android.content.pm.PackageManager
+import android.net.VpnService
+import android.net.wifi.WifiManager
+import android.os.Build
+import android.provider.Settings
+import android.widget.CheckBox
+import android.widget.RadioGroup
+import androidx.core.content.ContextCompat
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -60,6 +69,9 @@ import com.wireguard.android.wireroute.WireRouteRouting
 import com.wireguard.android.wireroute.WireRouteMissingSplitRoutesException
 import com.wireguard.android.wireroute.WireRouteDnsPolicy
 import com.wireguard.android.wireroute.WireRouteStore
+import com.wireguard.android.wireroute.WireRouteOnDemandPolicy
+import com.wireguard.android.wireroute.WireRouteOnDemandService
+import com.wireguard.android.wireroute.OnDemandWifiRule
 import com.wireguard.android.wireroute.WireRouteTrafficChartView
 import com.wireguard.android.wireroute.alphaColor
 import com.wireguard.android.wireroute.roundedBackground
@@ -209,6 +221,21 @@ class WireRouteActivity : AppCompatActivity() {
         permissionTunnel = null
     }
 
+    private var pendingOnDemandSave: (() -> Unit)? = null
+    private val onDemandVpnLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val save = pendingOnDemandSave
+        pendingOnDemandSave = null
+        if (result.resultCode == RESULT_OK) save?.let(::saveOnDemandWithNotificationPermission) else showMessage("VPN permission was not granted. On-Demand was not enabled.")
+    }
+    private val onDemandLocationLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        showMessage("Review Wi-Fi name access, then tap Save again. Named-network rules need precise location and Allow all the time.")
+    }
+    private val onDemandNotificationLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+        val save = pendingOnDemandSave
+        pendingOnDemandSave = null
+        save?.invoke()
+    }
+
     private val importLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri ?: return@registerForActivityResult
         lifecycleScope.launch {
@@ -290,6 +317,7 @@ class WireRouteActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
+        WireRouteOnDemandService.sync(this)
         startMapIfNeeded()
         refreshJob = lifecycleScope.launch {
             while (isActive) {
@@ -556,9 +584,163 @@ class WireRouteActivity : AppCompatActivity() {
         column.addView(routingCard(tunnel), matchWrap().bottom(38))
         column.addView(actionCard(WireRouteIcon.DNS, "DNS Protection", dnsDetail(tunnel)) { showDNSProtection(tunnel) }, matchFixed(104))
         column.addView(text(dnsDescription(tunnel), 15f, palette.secondaryLabel), matchWrap().horizontal(20).top(10).bottom(30))
+        column.addView(actionCard(WireRouteIcon.HISTORY, "On-Demand", store.onDemandPolicy(tunnel.name).summary()) {
+            showOnDemand(tunnel)
+        }, matchFixed(104).bottom(12))
+        column.addView(explanatory("Connect automatically on selected Wi-Fi or cellular networks."), matchWrap().horizontal(20).bottom(30))
         column.addView(text("Interface", 16f, palette.secondaryLabel, true), matchWrap().horizontal(20).bottom(10))
         column.addView(interfaceCard(tunnel), matchWrap().bottom(34))
         contentHost.addView(scroll, frameMatch())
+    }
+
+    private fun explanatory(value: String) = text(value, 15f, palette.secondaryLabel)
+    private fun panelTitle(value: String) = text(value, 16f, palette.label, true)
+    private fun inputField(hint: String, value: String, minimumLines: Int = 1) = EditText(this).apply {
+        this.hint = hint
+        setText(value)
+        setTextColor(palette.label)
+        setHintTextColor(palette.tertiaryLabel)
+        textSize = 15f
+        minLines = minimumLines
+        maxLines = 4
+        inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+        setPadding(dp(14), dp(12), dp(14), dp(12))
+        background = roundedBackground(palette.inset, dp(12).toFloat(), alphaColor(palette.border, 0.82f), dp(1))
+    }
+
+    @Suppress("DEPRECATION")
+    private fun showOnDemand(tunnel: ObservableTunnel) {
+        val initial = store.onDemandPolicy(tunnel.name)
+        fun check(label: String, selected: Boolean) = CheckBox(this).apply {
+            text = label; isChecked = selected; setTextColor(palette.label); textSize = 16f
+            buttonTintList = android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                intArrayOf(palette.signalBlue, palette.secondaryLabel))
+            minHeight = dp(48)
+        }
+        val enabled = check("Enable On-Demand", initial.enabled)
+        val wifi = check("Wi-Fi", initial.wifi)
+        val cellular = check("Cellular", initial.cellular)
+        val rules = RadioGroup(this).apply { orientation = RadioGroup.VERTICAL }
+        val ruleOptions = listOf(
+            OnDemandWifiRule.ANY to "Any Wi-Fi network",
+            OnDemandWifiRule.ONLY to "Only these networks",
+            OnDemandWifiRule.EXCEPT to "Except these trusted networks"
+        )
+        ruleOptions.forEachIndexed { index, (value, title) ->
+            rules.addView(RadioButton(this).apply {
+                id = index + 1; text = title; setTextColor(palette.label); textSize = 15f
+                buttonTintList = android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                    intArrayOf(palette.signalBlue, palette.secondaryLabel))
+                minHeight = dp(48); isChecked = initial.wifiRule == value
+            })
+        }
+        val ssids = inputField("One exact Wi-Fi name per line", initial.ssids.joinToString("\n"), minimumLines = 3)
+        val addCurrent = textButton("Add current Wi-Fi") {
+            if (!WireRouteOnDemandService.hasWifiNameAccess(this)) { requestOnDemandWifiAccess(); return@textButton }
+            val raw = applicationContext.getSystemService(WifiManager::class.java).connectionInfo?.ssid
+            val name = raw?.takeUnless { it == WifiManager.UNKNOWN_SSID || it.isEmpty() }?.removeSurrounding("\"")
+            if (name == null) showMessage("Wi-Fi name unavailable. Connect to Wi-Fi and enable Location in Android settings.")
+            else ssids.setText((ssids.text.toString().lines().filter(String::isNotEmpty) + name).distinct().joinToString("\n"))
+        }
+        val permission = textButton("Wi-Fi name access") { requestOnDemandWifiAccess() }
+        listOf(addCurrent, permission).forEach { button ->
+            button.minHeight = dp(48)
+            button.setPadding(dp(14), dp(10), dp(14), dp(10))
+        }
+        val namedNetworks = vertical().apply {
+            addView(ssids, matchWrap().top(8))
+            addView(explanatory("Names are case-sensitive, one per line. Spaces are preserved."), matchWrap().top(8))
+            addView(addCurrent, matchWrap().top(10))
+            addView(permission, matchWrap().top(8))
+        }
+        fun updateFields() {
+            val rule = ruleOptions.getOrNull(rules.checkedRadioButtonId - 1)?.first ?: OnDemandWifiRule.ANY
+            rules.visibility = if (wifi.isChecked) View.VISIBLE else View.GONE
+            namedNetworks.visibility = if (wifi.isChecked && rule != OnDemandWifiRule.ANY) View.VISIBLE else View.GONE
+        }
+        wifi.setOnCheckedChangeListener { _, _ -> updateFields() }
+        rules.setOnCheckedChangeListener { _, _ -> updateFields() }
+        updateFields()
+        val content = vertical().apply {
+            setPadding(dp(20), dp(6), dp(20), dp(10))
+            addView(explanatory("Apply connection rules to ${tunnel.name}. Disabling On-Demand leaves the current VPN connection unchanged."), matchWrap().bottom(12))
+            addView(enabled, matchWrap())
+            addView(divider(), matchFixed(1).vertical(12))
+            addView(panelTitle("Connect on"), matchWrap().bottom(6))
+            addView(wifi, matchWrap())
+            addView(cellular, matchWrap())
+            addView(rules, matchWrap().top(12))
+            addView(namedNetworks, matchWrap())
+            addView(divider(), matchFixed(1).vertical(16))
+            addView(explanatory("A persistent notification keeps On-Demand monitoring visible. Manual disconnect pauses it until the next network change. Android Always-on VPN must be off for conditional rules."), matchWrap())
+            if (initial.enabled) addView(explanatory(store.setting(WireRouteOnDemandService.STATUS_KEY, "Waiting for network rules.")), matchWrap().top(12))
+        }
+        val dialog = MaterialAlertDialogBuilder(this).setTitle("On-Demand")
+            .setView(ScrollView(this).apply { addView(content) })
+            .setNegativeButton("Cancel", null).setPositiveButton("Save", null).create()
+        dialog.setOnShowListener {
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val policy = WireRouteOnDemandPolicy(
+                    enabled.isChecked, wifi.isChecked, cellular.isChecked,
+                    ruleOptions.getOrNull(rules.checkedRadioButtonId - 1)?.first ?: OnDemandWifiRule.ANY,
+                    ssids.text.toString().lines().filter(String::isNotEmpty).distinct()
+                )
+                try { policy.validate() } catch (error: IllegalArgumentException) { ssids.error = error.message; showMessage(error.message.orEmpty()); return@setOnClickListener }
+                if (policy.enabled && policy.needsWifiNames && !WireRouteOnDemandService.hasWifiNameAccess(this)) {
+                    requestOnDemandWifiAccess(); return@setOnClickListener
+                }
+                val persist: () -> Unit = {
+                    lifecycleScope.launch {
+                        runCatching { withContext(Dispatchers.IO) { store.saveOnDemandPolicy(tunnel.name, policy) } }
+                            .onSuccess {
+                                WireRouteOnDemandService.sync(this@WireRouteActivity)
+                                dialog.dismiss(); render()
+                                showMessage(if (policy.enabled) "On-Demand enabled. See the notification for connection status." else "On-Demand disabled. Current connection unchanged.")
+                            }.onFailure(::showError)
+                    }
+                }
+                val prepare: () -> Unit = {
+                    val permissionIntent = if (policy.enabled) VpnService.prepare(this) else null
+                    when {
+                        permissionIntent != null -> { pendingOnDemandSave = persist; onDemandVpnLauncher.launch(permissionIntent) }
+                        policy.enabled -> saveOnDemandWithNotificationPermission(persist)
+                        else -> persist()
+                    }
+                }
+                val other = store.enabledOnDemandProfile()?.takeIf { it != tunnel.name }
+                if (policy.enabled && other != null) MaterialAlertDialogBuilder(this)
+                    .setTitle("Switch On-Demand profile?")
+                    .setMessage("Only one profile can use On-Demand at a time. Disable it for $other and enable it for ${tunnel.name}? An existing VPN connection will not be replaced.")
+                    .setNegativeButton("Cancel", null).setPositiveButton("Switch") { _, _ -> prepare() }.show()
+                else prepare()
+            }
+        }
+        dialog.show()
+    }
+
+    private fun saveOnDemandWithNotificationPermission(save: () -> Unit) {
+        if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            pendingOnDemandSave = save
+            onDemandNotificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else save()
+    }
+
+    private fun requestOnDemandWifiAccess() {
+        MaterialAlertDialogBuilder(this).setTitle("Wi-Fi name access")
+            .setMessage("WireRoute reads the connected Wi-Fi name to apply your On-Demand rules, including while the app is closed. Android classifies Wi-Fi names as location data. Enable precise location and Allow all the time for this optional feature. WireRoute does not request GPS coordinates or send Wi-Fi names to a server. Device Location must also be on. You can use Wi-Fi/cellular rules without naming networks if you decline.")
+            .setNegativeButton("Not now", null)
+            .setNeutralButton("App settings") { _, _ ->
+                startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+            }
+            .setPositiveButton("Continue") { _, _ ->
+                when {
+                    ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ->
+                        onDemandLocationLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+                    Build.VERSION.SDK_INT == 29 && !WireRouteOnDemandService.hasWifiNameAccess(this) ->
+                        onDemandLocationLauncher.launch(arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION))
+                    else -> startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+                }
+            }.show()
     }
 
     private fun detailHero(tunnel: ObservableTunnel): View {

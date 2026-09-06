@@ -74,6 +74,7 @@ android {
 }
 
 dependencies {
+    testImplementation(libs.junit)
     implementation(project(":tunnel"))
     implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.annotation)
