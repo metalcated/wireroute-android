@@ -62,6 +62,14 @@ Version 523 explicitly marks `android.hardware.location` optional, alongside the
 
 Before uploading, inspect the generated Google Play manifest and APK feature list (`aapt2 dump badging`). All three location features must appear as `uses-feature-not-required`, with no required or implied-required location feature. After uploading, check Play Console's device comparison to confirm the affected models are supported again; local checks cannot confirm Play's device-catalog result.
 
+## Automatic profiles (524)
+
+Version 524 adds opt-in network-based profile switching under **Profiles → Automatic profiles**. Wi-Fi assignments, trusted-network exclusions, cellular/Ethernet choices, and a default profile use the existing On-Demand service. No additional permissions or hardware requirements are introduced. Existing single-profile rules remain saved, and upgrades do not enable the new mode. See [setup, priority, manual overrides, and handover limitations](ON_DEMAND.md#automatic-profiles-524).
+
+Run `:ui:testDebugUnitTest` for policy tests. Build `:ui:assembleDebugAndroidTest`, install the debug app and test APK on the emulator, and run `adb -s emulator-5554 shell am instrument -w com.metalcated.wireroute.debug.test/com.wireguard.android.wireroute.ProfileSwitchingStoreRunner` for isolated real-SQLite persistence tests. The runner uses its own test database and does not modify VPN profiles. Repeat real endpoint handovers on a physical device before claiming end-to-end VPN connectivity validation; an active tunnel indicator alone is not proof of a handshake or working DNS.
+
+Optional emulator-only runtime checks add `-e runtime true` before the instrumentation component. Grant VPN consent first, disable existing automation, and disconnect emulator tunnels. This opt-in test creates/reuses `SwitchTestWiFi` and `SwitchTestCell` loopback fixtures, temporarily toggles emulator Wi-Fi, checks both handover directions and manual-control behavior, and restores Wi-Fi and the disabled automation draft afterward. It leaves the two inactive test profiles in place; they are not usable VPN endpoints. The runner refuses physical devices.
+
 ## Store listing assets
 
 The [Nordic Blue listing kit](../store-listing/README.md) contains the English listing copy, Play icon, feature graphic, real Android phone/tablet screenshots, and an optional preview video. Its guide maps every file to the matching Console field. The non-working screenshot fixtures are not functional app-review credentials.

@@ -82,9 +82,9 @@ data class WireRouteDnsPolicy(
 
 /** Device-local WireRoute metadata and activity history. Private tunnel keys remain in the
  * existing protected configuration store and are never copied into this database. */
-class WireRouteStore(context: Context) : SQLiteOpenHelper(
+class WireRouteStore(context: Context, databaseName: String = "wireroute.db") : SQLiteOpenHelper(
     context.applicationContext,
-    "wireroute.db",
+    databaseName,
     null,
     DATABASE_VERSION
 ) {
@@ -180,6 +180,7 @@ class WireRouteStore(context: Context) : SQLiteOpenHelper(
         val database = writableDatabase
         database.beginTransaction()
         try {
+            if (policy.enabled && profileSwitching().enabled) saveProfileSwitching(profileSwitching().copy(enabled = false))
             // Android has one active VPN: retain other profiles' rules, but disarm them.
             if (policy.enabled) database.execSQL("UPDATE on_demand SET enabled = 0")
             database.insertWithOnConflict("on_demand", null, ContentValues().apply {
@@ -204,6 +205,60 @@ class WireRouteStore(context: Context) : SQLiteOpenHelper(
     fun pauseOnDemand(profileName: String, network: String?) {
         writableDatabase.update("on_demand", ContentValues().apply { put("paused_network", network) },
             "profile_name = ?", arrayOf(profileName))
+    }
+
+    // Additive settings records preserve version-3 databases and all legacy profile rules.
+    @Synchronized
+    fun profileSwitching(): WireRouteProfileSwitching {
+        val json = JSONObject(setting("profile_switching", "{}"))
+        fun target(key: String): ProfileTarget {
+            val value = json.optJSONObject(key) ?: return ProfileTarget.DEFAULT
+            return ProfileTarget(ProfileTargetKind.valueOf(value.getString("kind")), value.optString("profile").takeIf { it.isNotEmpty() })
+        }
+        val assignments = json.optJSONArray("assignments") ?: JSONArray()
+        return WireRouteProfileSwitching(
+            enabled = json.optBoolean("enabled"), defaultProfile = json.optString("default").takeIf { it.isNotEmpty() },
+            wifi = target("wifi"), cellular = target("cellular"), ethernet = target("ethernet"),
+            trustedSsids = decodeStringList(json.optJSONArray("trusted")?.toString() ?: "[]"),
+            assignments = (0 until assignments.length()).map { index ->
+                val row = assignments.getJSONObject(index)
+                WifiProfileAssignment(row.getString("ssid"), row.getString("profile"))
+            }
+        )
+    }
+
+    @Synchronized
+    fun profileSwitchSnapshot(): Pair<WireRouteProfileSwitching, String> =
+        profileSwitching() to setting("profile_switch_revision", "")
+
+    @Synchronized
+    fun saveProfileSwitching(policy: WireRouteProfileSwitching) {
+        policy.validate()
+        fun target(value: ProfileTarget) = JSONObject().put("kind", value.kind.name).put("profile", value.profile ?: "")
+        val json = JSONObject().put("enabled", policy.enabled).put("default", policy.defaultProfile ?: "")
+            .put("wifi", target(policy.wifi)).put("cellular", target(policy.cellular)).put("ethernet", target(policy.ethernet))
+            .put("trusted", JSONArray(policy.trustedSsids)).put("assignments", JSONArray().apply {
+                policy.assignments.forEach { put(JSONObject().put("ssid", it.ssid).put("profile", it.profile)) }
+            })
+        val database = writableDatabase
+        database.beginTransaction()
+        try {
+            if (policy.enabled) database.execSQL("UPDATE on_demand SET enabled = 0")
+            putSetting("profile_switching", json.toString())
+            putSetting("profile_switch_revision", java.util.UUID.randomUUID().toString())
+            putSetting("profile_switch_pause", "")
+            // Disabling automation relinquishes ownership without disconnecting the tunnel.
+            if (!policy.enabled) putSetting("profile_switch_owned", "")
+            database.setTransactionSuccessful()
+        } finally { database.endTransaction() }
+    }
+
+    @Synchronized
+    fun manualProfileSwitchOverride(network: String) {
+        if (!profileSwitching().enabled) return
+        putSetting("profile_switch_owned", "")
+        putSetting("profile_switch_pause", network)
+        putSetting("profile_switch_revision", java.util.UUID.randomUUID().toString())
     }
 
     @Synchronized
@@ -339,6 +394,14 @@ class WireRouteStore(context: Context) : SQLiteOpenHelper(
         writableDatabase.update("profile_metadata", values, "profile_name = ?", arrayOf(oldName))
         writableDatabase.update("activity_sessions", values, "profile_name = ?", arrayOf(oldName))
         writableDatabase.update("on_demand", values, "profile_name = ?", arrayOf(oldName))
+        val switching = profileSwitching()
+        val renamed = switching.renamed(oldName, newName)
+        if (renamed != switching) {
+            val pause = setting("profile_switch_pause", "")
+            saveProfileSwitching(renamed)
+            putSetting("profile_switch_pause", pause)
+        }
+        if (setting("profile_switch_owned", "") == oldName) putSetting("profile_switch_owned", newName)
         if (selectedProfile() == oldName) setSelectedProfile(newName)
     }
 
@@ -346,6 +409,9 @@ class WireRouteStore(context: Context) : SQLiteOpenHelper(
     fun removeProfile(profileName: String) {
         writableDatabase.delete("profile_metadata", "profile_name = ?", arrayOf(profileName))
         writableDatabase.delete("on_demand", "profile_name = ?", arrayOf(profileName))
+        // Keep missing assignments visible; never silently use another profile instead.
+        if (setting("profile_switch_owned", "") == profileName) putSetting("profile_switch_owned", "")
+        putSetting("profile_switch_revision", java.util.UUID.randomUUID().toString())
         if (selectedProfile() == profileName) setSelectedProfile(null)
     }
 

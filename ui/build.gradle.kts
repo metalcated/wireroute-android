@@ -19,6 +19,7 @@ android {
     defaultConfig {
         applicationId = appId
         minSdk = 24
+        testInstrumentationRunner = "com.wireguard.android.wireroute.ProfileSwitchingStoreRunner"
         versionCode = providers.gradleProperty("wireguardVersionCode").get().toInt()
         versionName = providers.gradleProperty("wireguardVersionName").get()
         buildConfigField("int", "MIN_SDK_VERSION", minSdk.toString())

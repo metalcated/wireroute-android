@@ -21,6 +21,7 @@ import com.wireguard.android.R
 import com.wireguard.android.backend.Statistics
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.wireroute.WireRouteOnDemandService
+import com.wireguard.android.wireroute.AutomaticProfileSwitch
 import com.wireguard.android.configStore.ConfigStore
 import com.wireguard.android.databinding.ObservableSortedKeyedArrayList
 import com.wireguard.android.util.ErrorMessages
@@ -147,7 +148,7 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
         withContext(Dispatchers.IO) {
             try {
                 tunnelMap.filter { previouslyRunning.contains(it.name) &&
-                    (!respectOnDemand || !getWireRouteStore().onDemandPolicy(it.name).enabled)
+                    (!respectOnDemand || (!getWireRouteStore().profileSwitching().enabled && !getWireRouteStore().onDemandPolicy(it.name).enabled))
                 }.map { async(Dispatchers.IO + SupervisorJob()) { setTunnelState(it, Tunnel.State.UP) } }
                     .awaitAll()
             } catch (e: Throwable) {
@@ -204,15 +205,27 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
         newName!!
     }
 
-    suspend fun setTunnelState(tunnel: ObservableTunnel, state: Tunnel.State, automatic: Boolean = false): Tunnel.State = withContext(Dispatchers.Main.immediate) {
+    suspend fun setTunnelState(tunnel: ObservableTunnel, state: Tunnel.State, automatic: Boolean = false, switchRequest: AutomaticProfileSwitch? = null): Tunnel.State = withContext(Dispatchers.Main.immediate) {
         stateChangeMutex.withLock {
-            if (automatic && (getWireRouteStore().enabledOnDemandProfile() != tunnel.name ||
+            val store = getWireRouteStore()
+            if (switchRequest != null) {
+                val connectivity = context.getSystemService(android.net.ConnectivityManager::class.java)
+                val foreignVpn = connectivity.activeNetwork?.let(connectivity::getNetworkCapabilities)
+                    ?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN) == true && tunnelMap.none { it.state == Tunnel.State.UP }
+                if (!automatic || !switchRequest.permits(
+                    enabled = store.profileSwitching().enabled, currentRevision = store.setting("profile_switch_revision", ""),
+                    currentGeneration = WireRouteOnDemandService.networkGeneration, pausedNetwork = store.setting("profile_switch_pause", ""),
+                    ownedProfile = store.setting("profile_switch_owned", ""), activeProfiles = tunnelMap.filter { it.state == Tunnel.State.UP }.map { it.name }.toSet(),
+                    foreignVpn = foreignVpn, target = tunnel.name, connecting = state == Tunnel.State.UP
+                )) return@withLock tunnel.state
+            } else if (automatic && (store.profileSwitching().enabled || getWireRouteStore().enabledOnDemandProfile() != tunnel.name ||
                     getWireRouteStore().pausedOnDemandNetwork(tunnel.name) == WireRouteOnDemandService.networkIdentity ||
                     (state == Tunnel.State.UP && tunnelMap.any { it != tunnel && it.state == Tunnel.State.UP }))) {
                 return@withLock tunnel.state
             }
             var newState = tunnel.state
             var throwable: Throwable? = null
+            if (!automatic) store.manualProfileSwitchOverride(WireRouteOnDemandService.networkIdentity)
             try {
                 newState = withContext(Dispatchers.IO) { getBackend().setState(tunnel, state, tunnel.getConfigAsync()) }
                 if (newState == Tunnel.State.UP)
@@ -221,6 +234,8 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
                 throwable = e
             }
             tunnel.onStateChanged(newState)
+            if (switchRequest != null) store.putSetting("profile_switch_owned",
+                if (newState == Tunnel.State.UP && store.setting("profile_switch_revision", "") == switchRequest.revision) tunnel.name else "")
             saveState()
             if (throwable != null)
                 throw throwable

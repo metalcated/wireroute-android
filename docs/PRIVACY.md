@@ -1,6 +1,6 @@
 # WireRoute Privacy Policy
 
-Effective date: September 6, 2026
+Effective date: September 7, 2026
 
 This policy describes the data practices of WireRoute for Android.
 
@@ -18,7 +18,7 @@ WireRoute stores information required for features you choose:
 - Local per-profile connection sessions, transfer counters, rates, and last-handshake times
 - Local diagnostic logs
 - Appearance, retention, and selected-profile settings
-- Optional On-Demand rules, saved Wi-Fi names, and the network identifier used to pause after a manual disconnect
+- Optional On-Demand rules, automatic profile assignments for Wi-Fi/cellular/Ethernet, saved Wi-Fi names, and the network identifier used to pause after manual control
 
 Activity history does not contain packet contents. Retention can be set to 1, 7, or 30 days. Diagnostic logs can contain interface names, endpoint hostnames or addresses, public keys, handshake state, and error details.
 

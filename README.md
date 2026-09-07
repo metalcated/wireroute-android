@@ -32,7 +32,7 @@ See [Secure RouterOS WireGuard setup](docs/ROUTEROS_SETUP.md) for a guarded exam
 
 - [Android documentation and getting started](docs/README.md)
 - [Profile import, QR codes, and Apple configuration compatibility](docs/MOBILECONFIG.md)
-- [On-Demand VPN and trusted Wi-Fi rules](docs/ON_DEMAND.md)
+- [On-Demand VPN, automatic profile switching, and trusted Wi-Fi rules](docs/ON_DEMAND.md)
 - [Secure RouterOS WireGuard setup](docs/ROUTEROS_SETUP.md)
 - [Support and contact](docs/SUPPORT.md)
 - [Privacy policy](docs/PRIVACY.md)

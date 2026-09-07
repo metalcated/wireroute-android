@@ -2,7 +2,7 @@
 package com.wireguard.android.wireroute
 
 enum class OnDemandWifiRule { ANY, ONLY, EXCEPT }
-enum class OnDemandTransport { NONE, WIFI, CELLULAR, OTHER }
+enum class OnDemandTransport { NONE, WIFI, CELLULAR, ETHERNET, OTHER }
 enum class OnDemandDecision { CONNECT, DISCONNECT, HOLD }
 
 data class WireRouteOnDemandPolicy(

@@ -101,8 +101,8 @@ class WireRouteOnDemandService : Service() {
         override fun onLost(network: Network) { lost(network) }
     }
 
-    private fun update(network: Network, caps: NetworkCapabilities) { networks[network] = caps; changes.trySend(Unit) }
-    private fun lost(network: Network) { networks.remove(network); changes.trySend(Unit) }
+    private fun update(network: Network, caps: NetworkCapabilities) { networks[network] = caps; generation.incrementAndGet(); changes.trySend(Unit) }
+    private fun lost(network: Network) { networks.remove(network); generation.incrementAndGet(); changes.trySend(Unit) }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         changes.trySend(Unit)
@@ -110,6 +110,8 @@ class WireRouteOnDemandService : Service() {
     }
 
     private suspend fun evaluate() {
+        val switching = withContext(Dispatchers.IO) { store.profileSwitching() }
+        if (switching.enabled) { evaluateSwitching(); return }
         val name = withContext(Dispatchers.IO) { store.enabledOnDemandProfile() }
         if (name == null) { status("Off"); stopSelf(); return }
         if (VpnService.prepare(this) != null) {
@@ -172,6 +174,76 @@ class WireRouteOnDemandService : Service() {
         }
     }
 
+    private suspend fun evaluateSwitching() {
+        val (policy, revision) = store.profileSwitchSnapshot()
+        if (!policy.enabled) return
+        val observedGeneration = networkGeneration
+        if (VpnService.prepare(this) != null) {
+            status("VPN permission required. Open WireRoute to enable automatic profile switching.")
+            stopSelf(); return
+        }
+        val backend = Application.getBackend()
+        if (backend is WgQuickBackend) { status("Restart WireRoute to use automatic profiles with the userspace VPN engine."); return }
+        if (Build.VERSION.SDK_INT >= 29 && withContext(Dispatchers.IO) { runCatching { backend.isAlwaysOn }.getOrDefault(false) }) {
+            status("Android Always-on VPN is enabled. Turn it off to use automatic profile switching."); return
+        }
+        val manager = Application.getTunnelManager()
+        val tunnels = manager.getTunnels().toList()
+        val active = connectivity.activeNetwork
+        val activeCaps = active?.let(connectivity::getNetworkCapabilities)
+        val selected = active?.let { network -> networks[network]?.let { network to it } } ?: networks.entries
+            .sortedByDescending { (_, caps) ->
+                (if (caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) 10 else 0) + when {
+                    caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> 3
+                    caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> 2
+                    else -> 1
+                }
+            }.firstOrNull()?.let { it.key to it.value }
+        if (selected == null) { status("Waiting for a network."); return }
+        val (network, caps) = selected
+        val transport = when {
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> OnDemandTransport.ETHERNET
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> OnDemandTransport.WIFI
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> OnDemandTransport.CELLULAR
+            else -> OnDemandTransport.OTHER
+        }
+        val ssid = if (transport == OnDemandTransport.WIFI && policy.needsWifiNames) wifiName(caps) else null
+        val identity = "${network.networkHandle}:${transport.name}:${ssid.orEmpty()}"
+        networkIdentity = identity
+        if (store.setting("profile_switch_pause", "") == identity) {
+            status("Paused after manual control. Resumes on the next network change."); return
+        }
+        val owned = store.setting("profile_switch_owned", "")
+        val running = tunnels.filter { it.state == Tunnel.State.UP }
+        if (running.any { it.name != owned } || (running.isEmpty() && activeCaps?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true)) {
+            status("A manually connected profile or another VPN is active. Automatic switching will not replace it."); return
+        }
+        val desired = when (val decision = policy.decide(transport, ssid, tunnels.map { it.name }.toSet())) {
+            is ProfileSwitchDecision.Hold -> { status(decision.reason); return }
+            is ProfileSwitchDecision.Connect -> tunnels.first { it.name == decision.profile }
+            ProfileSwitchDecision.Disconnect -> null
+        }
+        // Validate the destination before bringing down a working connection.
+        desired?.getConfigAsync()
+        val request = AutomaticProfileSwitch(revision, observedGeneration, identity)
+        val previous = running.firstOrNull()
+        if (previous != null && previous != desired) {
+            status("Switching network profile…")
+            withContext(NonCancellable) { manager.setTunnelState(previous, Tunnel.State.DOWN, automatic = true, switchRequest = request) }
+            if (previous.state != Tunnel.State.DOWN) return
+        }
+        if (desired != null && desired.state != Tunnel.State.UP) {
+            status("Connecting ${desired.name} automatically…")
+            withContext(NonCancellable) { manager.setTunnelState(desired, Tunnel.State.UP, automatic = true, switchRequest = request) }
+        }
+        if (store.setting("profile_switch_revision", "") != revision || networkGeneration != observedGeneration) return
+        status(when {
+            desired == null -> "VPN off for this network. Automatic profile switching is watching."
+            desired.state == Tunnel.State.UP -> "${desired.name} connected automatically."
+            else -> "Waiting to apply automatic profile rules."
+        })
+    }
+
     @SuppressLint("MissingPermission")
     @Suppress("DEPRECATION")
     private fun wifiName(caps: NetworkCapabilities): String? {
@@ -214,6 +286,8 @@ class WireRouteOnDemandService : Service() {
         private const val CHANNEL = "wireroute-on-demand"
         private const val NOTIFICATION_ID = 5201
         const val STATUS_KEY = "on_demand_status"
+        private val generation = java.util.concurrent.atomic.AtomicLong()
+        val networkGeneration: Long get() = generation.get()
         @Volatile var networkIdentity: String = "none"
             private set
 
@@ -224,7 +298,7 @@ class WireRouteOnDemandService : Service() {
         fun sync(context: Context) {
             val store = Application.getWireRouteStore()
             val intent = Intent(context, WireRouteOnDemandService::class.java)
-            if (store.enabledOnDemandProfile() == null) { context.stopService(intent); return }
+            if (!store.profileSwitching().enabled && store.enabledOnDemandProfile() == null) { context.stopService(intent); return }
             if (VpnService.prepare(context) != null) {
                 store.putSetting(STATUS_KEY, "Open WireRoute to grant VPN permission."); return
             }

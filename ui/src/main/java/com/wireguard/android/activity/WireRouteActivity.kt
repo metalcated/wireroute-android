@@ -72,6 +72,10 @@ import com.wireguard.android.wireroute.WireRouteStore
 import com.wireguard.android.wireroute.WireRouteOnDemandPolicy
 import com.wireguard.android.wireroute.WireRouteOnDemandService
 import com.wireguard.android.wireroute.OnDemandWifiRule
+import com.wireguard.android.wireroute.WireRouteProfileSwitching
+import com.wireguard.android.wireroute.ProfileTarget
+import com.wireguard.android.wireroute.ProfileTargetKind
+import com.wireguard.android.wireroute.WifiProfileAssignment
 import com.wireguard.android.wireroute.WireRouteTrafficChartView
 import com.wireguard.android.wireroute.alphaColor
 import com.wireguard.android.wireroute.roundedBackground
@@ -517,6 +521,9 @@ class WireRouteActivity : AppCompatActivity() {
         val add = iconButton(WireRouteIcon.PLUS, palette.label, palette.inset, 50) { showAddProfileDialog() }
         column.addView(horizontalRow(spacer(), add), matchWrap().bottom(22))
         column.addView(text("Connect a profile, review its routing, or open it to manage the full configuration.", 18f, palette.secondaryLabel), matchWrap().horizontal(4).bottom(24))
+        column.addView(actionCard(WireRouteIcon.HISTORY, "Automatic profiles",
+            if (store.profileSwitching().enabled) "On · choose a profile for each network" else "Off · switch profiles by network"
+        ) { showProfileSwitching() }, matchWrap().bottom(24))
         column.addView(horizontalRow(
             text("My profiles", 24f, palette.label, true),
             spacer(),
@@ -585,8 +592,8 @@ class WireRouteActivity : AppCompatActivity() {
         column.addView(routingCard(tunnel), matchWrap().bottom(38))
         column.addView(actionCard(WireRouteIcon.DNS, "DNS Protection", dnsDetail(tunnel)) { showDNSProtection(tunnel) }, matchFixed(104))
         column.addView(text(dnsDescription(tunnel), 15f, palette.secondaryLabel), matchWrap().horizontal(20).top(10).bottom(30))
-        column.addView(actionCard(WireRouteIcon.HISTORY, "On-Demand", store.onDemandPolicy(tunnel.name).summary()) {
-            showOnDemand(tunnel)
+        column.addView(actionCard(WireRouteIcon.HISTORY, "On-Demand", if (store.profileSwitching().enabled) "Automatic profile switching" else store.onDemandPolicy(tunnel.name).summary()) {
+            if (store.profileSwitching().enabled) showProfileSwitching() else showOnDemand(tunnel)
         }, matchFixed(104).bottom(12))
         column.addView(explanatory("Connect automatically on selected Wi-Fi or cellular networks."), matchWrap().horizontal(20).bottom(30))
         column.addView(text("Interface", 16f, palette.secondaryLabel, true), matchWrap().horizontal(20).bottom(10))
@@ -607,6 +614,163 @@ class WireRouteActivity : AppCompatActivity() {
         inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS or InputType.TYPE_TEXT_FLAG_MULTI_LINE
         setPadding(dp(14), dp(12), dp(14), dp(12))
         background = roundedBackground(palette.inset, dp(12).toFloat(), alphaColor(palette.border, 0.82f), dp(1))
+    }
+
+    @Suppress("DEPRECATION")
+    private fun showProfileSwitching() {
+        val initial = store.profileSwitching()
+        var draft = initial
+        val enabled = CheckBox(this).apply {
+            text = "Enable automatic profiles"; isChecked = initial.enabled
+            setTextColor(palette.label); textSize = 16f; minHeight = dp(48)
+            buttonTintList = android.content.res.ColorStateList(
+                arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(palette.signalBlue, palette.secondaryLabel))
+        }
+        val content = vertical().apply { setPadding(dp(20), dp(6), dp(20), dp(16)) }
+        fun switchButton(title: String, action: () -> Unit) = textButton(title, action).apply {
+            minHeight = dp(48)
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+        }
+        fun section(title: String, detail: String) {
+            content.addView(divider(), matchFixed(1).vertical(18))
+            content.addView(panelTitle(title), matchWrap().bottom(6))
+            content.addView(explanatory(detail), matchWrap().bottom(12))
+        }
+        fun pick(title: String, current: ProfileTarget, allowDefault: Boolean, onPick: (ProfileTarget) -> Unit) {
+            val options = buildList {
+                if (allowDefault) add(ProfileTarget.DEFAULT)
+                add(ProfileTarget.OFF)
+                addAll(tunnels.map { ProfileTarget.profile(it.name) })
+            }
+            MaterialAlertDialogBuilder(this).setTitle(title)
+                .setSingleChoiceItems(options.map { it.label() }.toTypedArray(), options.indexOf(current)) { dialog, index ->
+                    onPick(options[index]); dialog.dismiss()
+                }.setNegativeButton("Cancel", null).show()
+        }
+        fun choice(title: String, current: () -> ProfileTarget, allowDefault: Boolean = true, save: (ProfileTarget) -> Unit) {
+            lateinit var button: TextView
+            button = textButton("$title: ${current().label()}") {
+                pick(title, current(), allowDefault) { value -> save(value); button.text = "$title: ${current().label()}" }
+            }.apply {
+                gravity = Gravity.START or Gravity.CENTER_VERTICAL; minHeight = dp(56)
+                setPadding(dp(14), dp(12), dp(14), dp(12))
+                background = roundedBackground(palette.inset, dp(12).toFloat())
+            }
+            content.addView(button, matchWrap().bottom(10))
+        }
+        content.addView(explanatory("Choose which saved profile connects as your network changes. This replaces single-profile On-Demand while enabled; its saved rules are kept."), matchWrap().bottom(12))
+        content.addView(enabled, matchWrap())
+        section("Default profile", "Used when a network action says Use default profile. VPN off means no automatic connection.")
+        choice("Default", { draft.defaultProfile?.let(ProfileTarget::profile) ?: ProfileTarget.OFF }, false) {
+            draft = draft.copy(defaultProfile = it.profile)
+        }
+        section("Network actions", "Wi-Fi assignments take priority over the Wi-Fi action below. Trusted Wi-Fi always keeps the VPN off.")
+        choice("Other Wi-Fi", { draft.wifi }) { draft = draft.copy(wifi = it) }
+        choice("Cellular", { draft.cellular }) { draft = draft.copy(cellular = it) }
+        choice("Ethernet", { draft.ethernet }) { draft = draft.copy(ethernet = it) }
+        section("Trusted Wi-Fi", "Keep the VPN off on these exact network names. One name per line; spelling and spaces matter.")
+        val trusted = inputField("Trusted Wi-Fi names", initial.trustedSsids.joinToString("\n"), 2)
+        content.addView(trusted, matchWrap())
+        fun currentWifi(): String? {
+            if (!WireRouteOnDemandService.hasWifiNameAccess(this)) { requestOnDemandWifiAccess(); return null }
+            val raw = applicationContext.getSystemService(WifiManager::class.java).connectionInfo?.ssid
+            return raw?.takeUnless { it == WifiManager.UNKNOWN_SSID || it.isEmpty() }?.removeSurrounding("\"")
+                .also { if (it == null) showMessage("Wi-Fi name unavailable. Connect to Wi-Fi and enable Location in Android settings.") }
+        }
+        content.addView(switchButton("Add current Wi-Fi as trusted") {
+            currentWifi()?.let { trusted.setText((trusted.text.toString().lines().filter(String::isNotEmpty) + it).distinct().joinToString("\n")) }
+        }, matchWrap().top(8))
+        section("Wi-Fi profile assignments", "Connect a specific profile on each named network. All other Wi-Fi uses the action above.")
+        val assignments = initial.assignments.toMutableList()
+        val assignmentRows = vertical()
+        fun renderAssignments() {
+            assignmentRows.removeAllViews()
+            if (assignments.isEmpty()) assignmentRows.addView(explanatory("No network-specific profiles yet."), matchWrap().bottom(10))
+            assignments.forEachIndexed { index, assignment ->
+                assignmentRows.addView(actionCard(WireRouteIcon.ROUTE, assignment.ssid, assignment.profile) {
+                    pick("Profile for ${assignment.ssid}", ProfileTarget.profile(assignment.profile), false) { selected ->
+                        // Choosing VPN off explicitly converts this assignment into a trusted network.
+                        if (selected.kind == ProfileTargetKind.OFF) {
+                            assignments.removeAt(index)
+                            trusted.setText((trusted.text.toString().lines().filter(String::isNotEmpty) + assignment.ssid).distinct().joinToString("\n"))
+                        } else assignments[index] = assignment.copy(profile = requireNotNull(selected.profile))
+                        renderAssignments()
+                    }
+                }, matchWrap().bottom(8))
+                assignmentRows.addView(switchButton("Remove assignment for ${assignment.ssid}") {
+                    MaterialAlertDialogBuilder(this).setTitle("Remove Wi-Fi assignment?")
+                        .setMessage("${assignment.ssid} will use the Other Wi-Fi action after you save. The profile itself will not be removed.")
+                        .setNegativeButton("Cancel", null).setPositiveButton("Remove") { _, _ -> assignments.removeAt(index); renderAssignments() }.show()
+                }, matchWrap().bottom(14))
+            }
+        }
+        renderAssignments()
+        content.addView(assignmentRows, matchWrap())
+        content.addView(switchButton("Add Wi-Fi assignment") {
+            val name = inputField("Exact Wi-Fi name", "")
+            var selected = tunnels.firstOrNull()?.name
+            lateinit var profile: TextView
+            profile = switchButton(selected ?: "Choose profile") {
+                val names = tunnels.map { it.name }
+                MaterialAlertDialogBuilder(this).setTitle("Choose profile").setItems(names.toTypedArray()) { _, index ->
+                    selected = names[index]; profile.text = selected
+                }.setNegativeButton("Cancel", null).show()
+            }
+            val form = vertical().apply {
+                setPadding(dp(20), dp(10), dp(20), dp(12))
+                addView(name, matchWrap())
+                addView(switchButton("Use current Wi-Fi") { currentWifi()?.let(name::setText) }, matchWrap().top(8))
+                addView(profile, matchWrap().top(12))
+            }
+            val add = MaterialAlertDialogBuilder(this).setTitle("Wi-Fi profile assignment").setView(form)
+                .setNegativeButton("Cancel", null).setPositiveButton("Add", null).create()
+            add.setOnShowListener {
+                add.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                    val row = WifiProfileAssignment(name.text.toString(), selected.orEmpty())
+                    try {
+                        draft.copy(trustedSsids = trusted.text.toString().lines().filter(String::isNotEmpty), assignments = assignments + row).validate()
+                        assignments.add(row); renderAssignments(); add.dismiss()
+                    } catch (error: IllegalArgumentException) { name.error = error.message }
+                }
+            }
+            add.show()
+        }, matchWrap())
+        content.addView(switchButton("Wi-Fi name access") { requestOnDemandWifiAccess() }, matchWrap().top(8))
+        section("Your connection stays in your control", "Only automatically connected profiles are switched. Manual control pauses switching until the network changes; manually connected profiles are never replaced. Switching briefly disconnects the VPN and is not a kill switch. Android Always-on must be off.")
+        if (initial.enabled) content.addView(explanatory(store.setting(WireRouteOnDemandService.STATUS_KEY, "Waiting for network rules.")), matchWrap())
+        val dialog = MaterialAlertDialogBuilder(this).setTitle("Automatic profiles")
+            .setView(ScrollView(this).apply { addView(content) }).setNegativeButton("Cancel", null).setPositiveButton("Save", null).create()
+        dialog.setOnShowListener {
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val policy = draft.copy(enabled = enabled.isChecked, trustedSsids = trusted.text.toString().lines().filter(String::isNotEmpty), assignments = assignments.toList())
+                try { policy.validate() } catch (error: IllegalArgumentException) { showMessage(error.message.orEmpty()); return@setOnClickListener }
+                if (policy.enabled && policy.needsWifiNames && !WireRouteOnDemandService.hasWifiNameAccess(this)) {
+                    requestOnDemandWifiAccess(); return@setOnClickListener
+                }
+                val persist: () -> Unit = {
+                    lifecycleScope.launch {
+                        runCatching { withContext(Dispatchers.IO) { store.saveProfileSwitching(policy) } }.onSuccess {
+                            WireRouteOnDemandService.sync(this@WireRouteActivity)
+                            dialog.dismiss(); render()
+                            showMessage(if (policy.enabled) "Automatic profiles enabled. Manual connections are left unchanged." else "Automatic profiles off. Current connection unchanged.")
+                        }.onFailure(::showError)
+                    }
+                }
+                val prepare: () -> Unit = {
+                    val intent = if (policy.enabled) VpnService.prepare(this) else null
+                    when {
+                        intent != null -> { pendingOnDemandSave = persist; onDemandVpnLauncher.launch(intent) }
+                        policy.enabled -> saveOnDemandWithNotificationPermission(persist)
+                        else -> persist()
+                    }
+                }
+                if (policy.enabled && store.enabledOnDemandProfile() != null) MaterialAlertDialogBuilder(this)
+                    .setTitle("Use automatic profiles?").setMessage("Single-profile On-Demand will be disabled. Its saved rules and your current connection will be kept.")
+                    .setNegativeButton("Cancel", null).setPositiveButton("Enable") { _, _ -> prepare() }.show()
+                else prepare()
+            }
+        }
+        dialog.show()
     }
 
     @Suppress("DEPRECATION")
@@ -666,6 +830,7 @@ class WireRouteActivity : AppCompatActivity() {
             setPadding(dp(20), dp(6), dp(20), dp(10))
             addView(explanatory("Apply connection rules to ${tunnel.name}. Disabling On-Demand leaves the current VPN connection unchanged."), matchWrap().bottom(12))
             addView(enabled, matchWrap())
+            addView(textButton("Switch profiles by network…") { showProfileSwitching() }, matchWrap().top(8))
             addView(divider(), matchFixed(1).vertical(12))
             addView(panelTitle("Connect on"), matchWrap().bottom(6))
             addView(wifi, matchWrap())
@@ -709,7 +874,11 @@ class WireRouteActivity : AppCompatActivity() {
                     }
                 }
                 val other = store.enabledOnDemandProfile()?.takeIf { it != tunnel.name }
-                if (policy.enabled && other != null) MaterialAlertDialogBuilder(this)
+                if (policy.enabled && store.profileSwitching().enabled) MaterialAlertDialogBuilder(this)
+                    .setTitle("Use single-profile On-Demand?")
+                    .setMessage("Automatic profile switching will be disabled. Its assignments and your current connection will be kept.")
+                    .setNegativeButton("Cancel", null).setPositiveButton("Switch") { _, _ -> prepare() }.show()
+                else if (policy.enabled && other != null) MaterialAlertDialogBuilder(this)
                     .setTitle("Switch On-Demand profile?")
                     .setMessage("Only one profile can use On-Demand at a time. Disable it for $other and enable it for ${tunnel.name}? An existing VPN connection will not be replaced.")
                     .setNegativeButton("Cancel", null).setPositiveButton("Switch") { _, _ -> prepare() }.show()
