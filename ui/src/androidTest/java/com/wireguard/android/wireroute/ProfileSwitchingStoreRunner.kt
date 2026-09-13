@@ -24,11 +24,23 @@ import java.io.ByteArrayInputStream
 /** Real SQLite/JSON checks, isolated from the user's profile database and VPN state. */
 class ProfileSwitchingStoreRunner : Instrumentation() {
     private var runtime = false
-    override fun onCreate(arguments: Bundle?) { super.onCreate(arguments); runtime = arguments?.getString("runtime") == "true"; start() }
+    private var branding = false
+    override fun onCreate(arguments: Bundle?) {
+        super.onCreate(arguments)
+        runtime = arguments?.getString("runtime") == "true"
+        branding = arguments?.getString("branding") == "true"
+        start()
+    }
 
     override fun onStart() {
         val report = Bundle()
         try {
+            if (branding) {
+                checkNotificationBranding(targetContext)
+                report.putString("stream", "PASS: notification icon, content intent, ongoing flag, tile manifest icon, transparent monochrome rendering and legacy slashed tile. Preview: cache/notification-branding.png\n")
+                finish(Activity.RESULT_OK, report)
+                return
+            }
             val name = "switching-test-${System.nanoTime()}.db"
             val initial = WireRouteStore(targetContext, name)
             check(!initial.profileSwitching().enabled)

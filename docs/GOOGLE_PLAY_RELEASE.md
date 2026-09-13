@@ -70,6 +70,12 @@ Run `:ui:testDebugUnitTest` for policy tests. Build `:ui:assembleDebugAndroidTes
 
 Optional emulator-only runtime checks add `-e runtime true` before the instrumentation component. Grant VPN consent first, disable existing automation, and disconnect emulator tunnels. This opt-in test creates/reuses `SwitchTestWiFi` and `SwitchTestCell` loopback fixtures, temporarily toggles emulator Wi-Fi, checks both handover directions and manual-control behavior, and restores Wi-Fi and the disabled automation draft afterward. It leaves the two inactive test profiles in place; they are not usable VPN endpoints. The runner refuses physical devices.
 
+## Notification branding (525)
+
+Version 525 replaces the inherited WireGuard symbol in On-Demand notifications and Quick Settings with a monochrome adaptation of the WireRoute logo. This includes the tile-add request and active/inactive tile states. Android controls the system tint; launcher artwork, notification actions, VPN behavior, permissions, and optional hardware declarations are unchanged.
+
+For isolated rendering and wiring checks, build/install the debug app and test APK as above, then run `adb -s emulator-5554 shell am instrument -w -e branding true com.metalcated.wireroute.debug.test/com.wireguard.android.wireroute.ProfileSwitchingStoreRunner`. This checks the real notification builder, tile manifest icon, transparent white rendering at small sizes, and legacy slashed-tile rendering without starting automation. It writes a light/dark preview to the debug app's `cache/notification-branding.png`. Physical notification-shade and tile behavior still require device verification.
+
 ## Store listing assets
 
 The [Nordic Blue listing kit](../store-listing/README.md) contains the English listing copy, Play icon, feature graphic, real Android phone/tablet screenshots, and an optional preview video. Its guide maps every file to the matching Console field. The non-working screenshot fixtures are not functional app-review credentials.

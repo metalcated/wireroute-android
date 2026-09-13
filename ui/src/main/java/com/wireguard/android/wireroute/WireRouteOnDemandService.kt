@@ -254,7 +254,7 @@ class WireRouteOnDemandService : Service() {
     }
 
     private fun notification(message: String) = NotificationCompat.Builder(this, CHANNEL)
-        .setSmallIcon(R.drawable.ic_tile).setContentTitle("WireRoute On-Demand")
+        .setSmallIcon(R.drawable.ic_wireroute_status).setContentTitle("WireRoute On-Demand")
         .setContentText(message).setStyle(NotificationCompat.BigTextStyle().bigText(message))
         .setOnlyAlertOnce(true).setOngoing(true)
         .setContentIntent(PendingIntent.getActivity(this, 0, Intent(this, WireRouteActivity::class.java),
